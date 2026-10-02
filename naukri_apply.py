@@ -22,6 +22,7 @@ from common.profile import Profile
 from common import llm
 from common import learned_answers
 from common.human_input import ask_user
+from common.ats_pipeline import prepare_tailored_resume
 from google_sheets_logger import append_external_job, external_job_url_exists
 
 SESSION_FILE = "session_naukri.json"
@@ -970,6 +971,21 @@ def run():
                             ])
                             print(f"SKIP: quality={quality}")
                             continue
+
+                        ats_result = prepare_tailored_resume(
+                            job_description=(
+                                f"{job_details['description']}\n"
+                                f"Key Skills: {job_details['key_skills']}"
+                            ),
+                            master_resume_path=profile.data.get(
+                                "resume_file_name",
+                                "Abhishek_Anand_Resume.docx",
+                            ),
+                        )
+                        print(
+                            "ATS resume prepared: "
+                            f"{ats_result['tailored_resume_path']}"
+                        )
 
                         stop = page_has_stop_signal(page)
                         if stop:
