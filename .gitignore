@@ -29,3 +29,6 @@ debug_screenshots/
 processed_jobs.csv
 
 .DS_Store
+
+# Generated job-specific resumes
+generated/
