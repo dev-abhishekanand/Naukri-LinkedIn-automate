@@ -1,0 +1,29 @@
+# Secrets
+.env
+
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Browser authentication sessions
+session_*.json
+
+# Local application/runtime data
+applications_log.csv
+external_jobs.csv
+learned_answers.json
+
+# Local resume
+Abhishek_Anand_Resume.docx
+
+# Temporary diagnostics
+linkedin_discovery_test.py
+
+naukri-sheets-integration-42556bd602fd.json
+
+debug_screenshots/
+
+processed_jobs.csv

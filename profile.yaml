@@ -1,0 +1,134 @@
+# ==========================================================================
+# YOUR APPLICATION PROFILE
+# Copy this file to profile.yaml (that filename is gitignored, so your real
+# details never get committed) and fill it in with real facts. Every answer
+# the script gives on a form is generated from this file -- nothing here
+# should be something you'd be uncomfortable being asked about in an
+# interview.
+# ==========================================================================
+
+target_roles:
+  - "React Developer"
+  - "Frontend Developer"
+  - "Frontend Engineer"
+  - "React + TypeScript Developer"
+  - "Next.js Developer"
+  - "Full Stack JavaScript Developer"
+
+# Controls how strictly a job's title must match the role you searched for.
+# Naukri's own search is loose (e.g. "Data Engineer" can surface completely
+# unrelated titles), so this filter re-checks the title itself. A card is
+# kept only if its title contains at least one of these words. If a role
+# isn't listed here, the script falls back to using the role's own words
+# (minus generic terms like "engineer"/"developer").
+role_required_keywords:
+  "React Developer":
+    [
+      "react developer",
+      "react engineer",
+      "React.js Developer",
+      "React JS Developer",
+      "JavaScript Developer (React.js)",
+      "React Js Frontend Developer",
+      "Frontend Developer",
+      "React Frrontend Developer",
+    ]
+  "Frontend Developer": ["frontend developer", "front end developer"]
+  "Frontend Engineer": ["frontend engineer", "front end engineer"]
+  "React + TypeScript Developer": ["react", "typescript"]
+  "Next.js Developer": ["next.js", "nextjs"]
+  "Full Stack JavaScript Developer":
+    ["full stack", "fullstack", "MERN", "MERN fullstack Developer"]
+
+current_city: "Patna"
+# relocate_cities: ["Hyderabad", "Pune", "Noida", "Delhi", "Gurgaon", "Bengaluru"] # e.g. ["Hyderabad", "Pune"] -- leave empty if you won't relocate
+relocate_cities:
+  - "Hyderabad"
+  - "Pune"
+  - "Noida"
+  - "Delhi"
+  - "Gurgaon"
+  - "Bengaluru"
+work_mode: "onsite_or_hybrid" # onsite_or_hybrid | remote_only | flexible
+night_shift_ok: true
+weekend_ok: false
+
+total_experience_years: 3.6
+current_employer: "Not working"
+current_title_official: "Software Engineer"
+current_title_functional: "Frontend / React development"
+notice_period_days: 0 # set to your real, current notice period
+immediately_available: true
+
+current_ctc_lpa: 7.0 # fill in your real number, in Lakhs Per Annum
+expected_ctc_lpa: 10.0
+ctc_disclosure_policy: "negotiable" # negotiable | real_numbers
+
+highest_qualification: "B.Tech"
+certifications: [] # e.g. ["AWS Certified Developer", "Azure Fundamentals"]
+
+skills_primary:
+  - "React.js"
+  - "Next.js"
+  - "TypeScript"
+  - "JavaScript"
+  - "HTML5"
+  - "CSS3"
+  - "Redux"
+  - "Context API"
+  - "TanStack Query"
+  - "REST APIs"
+  - "GraphQL"
+  - "Apollo"
+  - "WebSockets"
+  - "Tailwind CSS"
+  - "Material UI"
+  - "Node.js"
+  - "Express.js"
+  - "MongoDB"
+  - "Git"
+  - "Docker"
+  - "Azure"
+
+skills_adjacent:
+  - "LLM APIs"
+  - "Jest"
+  - "Socket.io"
+  - "Vite"
+  - "AI Tools Code"
+
+work_history_narrative: |
+  Software Engineer with 3.6 years of professional experience focused on frontend development using React, Next.js, TypeScript and JavaScript. Experienced in building scalable web applications and working with REST APIs, GraphQL, state management and modern frontend tooling. Currently available immediately for a new opportunity.
+
+company_exclude: [] # e.g. ["Your Current Employer"] -- filter rule, not a fact
+company_include_only: [] # leave empty to not restrict
+
+seniority_floor_years: 0
+seniority_ceiling_years: 5
+job_freshness_days: 3 # Naukri's "freshness" filter -- only jobs posted in the last N days
+
+salary_floor_lpa: null
+
+stop_after_n_applications: 5
+pace_seconds_between_actions: 30
+
+# How long to wait for you to type an answer when the script hits a
+# question it can't answer safely on its own (personal details like DOB,
+# or anything the AI genuinely doesn't know from your profile). If you
+# don't respond in time, that one listing is skipped -- the run continues.
+human_input_timeout_seconds: 120
+
+# How many search-result pages to go through per role before moving to the
+# next role (or stopping, if stop_after_n_applications is reached first).
+max_pages_per_role: 5
+
+# How the browser window behaves while running:
+#   "visible"   -- normal window, you can watch it (best for early runs / debugging)
+#   "minimized" -- a real browser still opens and does everything the same way,
+#                  but starts minimized to the taskbar so it's out of your way
+#   "headless"  -- no window at all, fastest, but a genuinely fake/invisible
+#                  browser is somewhat easier for a site to detect as a bot
+#                  than a real (even minimized) one -- slightly higher risk
+browser_mode: "minimized"
+
+resume_file_name: "Abhishek_Anand_Resume.docx" # must match the filename already uploaded to Naukri/LinkedIn, and sit in this same project folder
