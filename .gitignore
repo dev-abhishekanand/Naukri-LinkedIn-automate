@@ -32,3 +32,4 @@ processed_jobs.csv
 
 # Generated job-specific resumes
 generated/
+\n# Local tailored-resume manual queue\ntailored_jobs.csv\n

@@ -19,6 +19,9 @@ HEADERS = [
     "job_url",
     "status",
     "notes",
+    "jd_keywords",
+    "missing_keywords",
+    "tailored_resume_path",
 ]
 
 
@@ -52,6 +55,27 @@ def _get_sheet():
     return spreadsheet.sheet1
 
 
+def _ensure_headers(sheet):
+    rows = sheet.get_all_values()
+
+    if not rows:
+        sheet.append_row(HEADERS)
+        return
+
+    current = rows[0]
+
+    if current == HEADERS:
+        return
+
+    if current == HEADERS[:len(current)]:
+        sheet.update("A1:M1", [HEADERS])
+        return
+
+    raise RuntimeError(
+        "Google Sheet headers do not match the expected job-log schema."
+    )
+
+
 def external_job_url_exists(job_url: str) -> bool:
     if not job_url:
         return False
@@ -77,8 +101,7 @@ def external_job_url_exists(job_url: str) -> bool:
 def append_external_job(card: dict):
     sheet = _get_sheet()
 
-    if not sheet.get_all_values():
-        sheet.append_row(HEADERS)
+    _ensure_headers(sheet)
 
     sheet.append_row([
         card.get("discovered_at", ""),
@@ -91,5 +114,31 @@ def append_external_job(card: dict):
         card.get("href", ""),
         "PENDING",
         "External company application - manual completion required",
+        "",
+        "",
+        "",
+    ])
+    return True
+
+
+def append_tailored_job(card: dict):
+    """Log a relevant Naukri job requiring manual application."""
+    sheet = _get_sheet()
+    _ensure_headers(sheet)
+
+    sheet.append_row([
+        card.get("discovered_at", ""),
+        "naukri",
+        card.get("jobId", ""),
+        card.get("title", ""),
+        card.get("company", ""),
+        card.get("location", ""),
+        card.get("exp", ""),
+        card.get("href", ""),
+        "TAILORED_MANUAL",
+        "Manual application required with tailored resume",
+        card.get("jd_keywords", ""),
+        card.get("missing_keywords", ""),
+        card.get("tailored_resume_path", ""),
     ])
     return True

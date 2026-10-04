@@ -23,7 +23,7 @@ from common import llm
 from common import learned_answers
 from common.human_input import ask_user
 from common.ats_pipeline import prepare_tailored_resume
-from google_sheets_logger import append_external_job, external_job_url_exists
+from google_sheets_logger import append_external_job, append_tailored_job, external_job_url_exists
 
 SESSION_FILE = "session_naukri.json"
 LOG_FILE = "applications_log.csv"
@@ -143,6 +143,98 @@ def log_external_job(card: dict):
     except Exception as e:
         print(f"Google Sheets logging failed: {e}")
         
+def _tailored_resume_filename(card: dict) -> str:
+    """Return a stable, job-specific generated resume filename."""
+    job_id = re.sub(
+        r"[^A-Za-z0-9_-]+",
+        "_",
+        str(card.get("jobId") or "unknown").strip(),
+    )
+    title = re.sub(
+        r"[^A-Za-z0-9]+",
+        "_",
+        str(card.get("title") or "job"),
+    ).strip("_")[:50]
+    return f"generated/Abhishek_Anand_Tailored_{title}_{job_id}.docx"
+
+
+def _resume_text(path: str) -> str:
+    from docx import Document
+
+    return "\n".join(paragraph.text for paragraph in Document(path).paragraphs)
+
+
+def _tailoring_needed(
+    ats_result: dict[str, object],
+    master_resume_path: str,
+) -> bool:
+    """Tailor only when the generated resume materially changes."""
+    return _resume_text(
+        str(ats_result["tailored_resume_path"])
+    ) != _resume_text(master_resume_path)
+
+
+def log_tailored_job(card: dict, ats_result: dict[str, object]):
+    tailoring = ats_result["tailoring"]
+    keywords = [str(item) for item in ats_result["keywords"]]
+    missing = [str(item) for item in tailoring["unsupported"]]
+    resume_path = str(ats_result["tailored_resume_path"])
+
+    csv_path = Path("tailored_jobs.csv")
+    new_file = not csv_path.exists() or csv_path.stat().st_size == 0
+
+    with csv_path.open("a", newline="") as f:
+        w = csv.writer(f)
+
+        if new_file:
+            w.writerow([
+                "discovered_at",
+                "platform",
+                "job_id",
+                "title",
+                "company",
+                "location",
+                "experience",
+                "job_url",
+                "status",
+                "jd_keywords",
+                "missing_keywords",
+                "tailored_resume_path",
+            ])
+
+        w.writerow([
+            datetime.now().isoformat(),
+            "naukri",
+            card.get("jobId"),
+            card.get("title"),
+            card.get("company"),
+            card.get("location"),
+            card.get("exp"),
+            card.get("href"),
+            "TAILORED_MANUAL",
+            ", ".join(keywords),
+            ", ".join(missing),
+            resume_path,
+        ])
+
+    try:
+        append_tailored_job({
+            "discovered_at": datetime.now().isoformat(),
+            "jobId": card.get("jobId"),
+            "title": card.get("title"),
+            "company": card.get("company"),
+            "location": card.get("location"),
+            "exp": card.get("exp"),
+            "href": card.get("href"),
+            "jd_keywords": ", ".join(keywords),
+            "missing_keywords": ", ".join(missing),
+            "tailored_resume_path": resume_path,
+        })
+        print("Google Sheets: tailored job logged")
+    except Exception as e:
+        print(f"Google Sheets logging failed: {e}")
+
+
 def passes_filters(card: dict, profile: Profile, role: str) -> tuple[bool, str]:
     """
     Apply only hard filters that are available from the search card.
@@ -988,19 +1080,9 @@ def run():
                             print(f"SKIP: quality={quality}")
                             continue
 
-                        ats_result = prepare_tailored_resume(
-                            job_description=(
-                                f"{job_details['description']}\n"
-                                f"Key Skills: {job_details['key_skills']}"
-                            ),
-                            master_resume_path=profile.data.get(
-                                "resume_file_name",
-                                "Abhishek_Anand_Resume.docx",
-                            ),
-                        )
-                        print(
-                            "ATS resume prepared: "
-                            f"{ats_result['tailored_resume_path']}"
+                        master_resume_path = profile.data.get(
+                            "resume_file_name",
+                            "Abhishek_Anand_Resume.docx",
                         )
 
                         stop = page_has_stop_signal(page)
@@ -1024,6 +1106,49 @@ def run():
                                       card.get("company"), "skipped", "no apply button found"])
                             print(f"Skipped: {card.get('title')} @ {card.get('company')} — no apply button found")
                             continue
+
+                        ats_result = prepare_tailored_resume(
+                            job_description=(
+                                f"{job_details['description']}\n"
+                                f"Key Skills: {job_details['key_skills']}"
+                            ),
+                            master_resume_path=master_resume_path,
+                            output_path=_tailored_resume_filename(card),
+                        )
+
+                        if _tailoring_needed(
+                            ats_result,
+                            master_resume_path,
+                        ):
+                            log_tailored_job(card, ats_result)
+
+                            if job_id:
+                                record_processed_job(
+                                    card,
+                                    "TAILORED_MANUAL",
+                                )
+                                processed_job_ids.add(job_id)
+
+                            log_row([
+                                datetime.now(),
+                                "naukri",
+                                card.get("title", ""),
+                                card.get("company", ""),
+                                "manual",
+                                "tailored resume queued for manual application",
+                            ])
+
+                            print(
+                                f"MANUAL TAILORED: "
+                                f"{card.get('title')} @ {card.get('company')} — "
+                                f"{ats_result['tailored_resume_path']}"
+                            )
+                            continue
+
+                        print(
+                            "Master Resume sufficient — "
+                            "continuing with automatic application"
+                        )
 
                         clicked = click_native_apply(page)
                         if not clicked:
