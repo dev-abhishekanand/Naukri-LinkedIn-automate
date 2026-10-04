@@ -269,6 +269,22 @@ def classify_job_quality(
     def has(pattern: str) -> bool:
         return bool(re.search(pattern, text))
 
+    # Use the title as a primary-role relevance signal. Clearly unrelated
+    # role families must not become eligible merely because their JD contains
+    # incidental React/JavaScript/frontend mentions. Generic engineering
+    # titles remain neutral and are evaluated from the full JD below.
+    normalized_title = re.sub(r"\s+", " ", (title or "").strip().lower())
+    relevant_title = bool(re.search(
+        r"(?:react|frontend|front end|front-end|next\.?js|full[- ]?stack javascript|mern|ui developer)",
+        normalized_title,
+    ))
+    unrelated_primary_title = bool(re.search(
+        r"(?:\.net|dot net|c#|wordpress|shopify|magento|sugarcrm|suitecrm|generative ai|machine learning|data scientist|java developer|angular developer|php developer|ruby developer)",
+        normalized_title,
+    ))
+    if unrelated_primary_title and not relevant_title:
+        return "SKIP_UNRELATED_PRIMARY_ROLE"
+
     # Strong/profile-specific signals.
     skills = {
         "react": has(r"(?<!\w)react(?:\.js|js)?(?!\w)"),
