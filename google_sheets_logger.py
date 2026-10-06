@@ -25,7 +25,24 @@ HEADERS = [
 ]
 
 
+def _load_dotenv():
+    if os.environ.get(SPREADSHEET_ID_ENV):
+        return
+    env_path = Path(__file__).resolve().parent / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        if key.strip() == SPREADSHEET_ID_ENV:
+            os.environ[SPREADSHEET_ID_ENV] = value.strip()
+            return
+
+
 def _get_sheet():
+    _load_dotenv()
     spreadsheet_id = os.getenv(SPREADSHEET_ID_ENV)
 
     if not spreadsheet_id:
