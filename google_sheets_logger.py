@@ -67,6 +67,7 @@ def _get_sheet():
     )
 
     client = gspread.authorize(credentials)
+    client.set_timeout((10, 20))
     spreadsheet = client.open_by_key(spreadsheet_id)
 
     return spreadsheet.sheet1
