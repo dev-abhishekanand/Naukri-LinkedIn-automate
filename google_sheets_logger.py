@@ -79,13 +79,64 @@ def _ensure_headers(sheet):
         sheet.append_row(HEADERS)
         return
 
-    current = rows[0]
+    # Find the existing job-log header row. The sheet may contain
+    # dashboard/title rows above the actual application table.
+    header_row_index = None
+    for index, row in enumerate(rows):
+        normalized = [str(cell).strip().lower() for cell in row]
+        if "job id" in normalized or "job_id" in normalized:
+            header_row_index = index
+            break
 
-    if current == HEADERS:
+    if header_row_index is None:
+        raise RuntimeError(
+            "Google Sheet job-log header row could not be found."
+        )
+
+    current = rows[header_row_index]
+
+    # Existing sheet uses human-readable headers.
+    expected_existing = [
+        "date added",
+        "platform",
+        "job id",
+        "job title",
+        "company",
+        "location",
+        "experience",
+        "job link",
+        "status",
+        "notes",
+    ]
+
+    normalized_current = [
+        str(cell).strip().lower() for cell in current[:10]
+    ]
+
+    if normalized_current == expected_existing:
+        expanded_headers = [
+            "Date Added",
+            "Platform",
+            "Job ID",
+            "Job Title",
+            "Company",
+            "Location",
+            "Experience",
+            "Job Link",
+            "Status",
+            "Notes",
+            "JD Keywords",
+            "Missing Keywords",
+            "Tailored Resume Path",
+        ]
+        row_number = header_row_index + 1
+        sheet.update(
+            f"A{row_number}:M{row_number}",
+            [expanded_headers],
+        )
         return
 
-    if current == HEADERS[:len(current)]:
-        sheet.update("A1:M1", [HEADERS])
+    if current == HEADERS:
         return
 
     raise RuntimeError(
