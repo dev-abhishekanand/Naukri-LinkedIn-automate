@@ -97,7 +97,7 @@ cp .env.example .env
 
 Edit `.env` and fill in:
 
-```
+```text
 GEMINI_API_KEY=your-real-key-here
 GROQ_API_KEY=your-real-key-here          # optional but recommended
 ```
@@ -147,23 +147,253 @@ Removes and re-uploads your resume to keep your profile showing recent
 activity. Can be scheduled (cron / Windows Task Scheduler) to run a few
 times a day.
 
+## macOS Naukri Scheduler
+
+The project includes an optional macOS `launchd` scheduler for automatically
+running the existing Naukri application flow on weekdays.
+
+The scheduler is **local to this Mac**. It does not run on GitHub or on a
+remote server, and it does not change `naukri_apply.py` or the existing
+application logic.
+
+### Schedule
+
+The scheduler runs:
+
+- Monday through Friday
+- At 9:05 AM
+- Using this project's `.venv`
+- Running the existing `naukri_apply.py`
+- With the existing CAPTCHA, OTP, security-verification, and human-action
+  safety behavior preserved
+- With overlap protection so two scheduled Naukri runs cannot run at the
+  same time
+
+### Scheduler command reference
+
+All scheduler operations are controlled through the following commands.
+
+Run them from the project root:
+
+#### Install / start the scheduler
+
+```bash
+scripts/install_naukri_scheduler.sh
+```
+
+This installs the macOS LaunchAgent at:
+
+```text
+~/Library/LaunchAgents/com.naukri.linkedin-ai.naukri.plist
+```
+
+and loads it into macOS `launchd`.
+
+#### Check scheduler status
+
+```bash
+scripts/naukri_scheduler_status.sh
+```
+
+Expected output when the scheduler is active:
+
+```text
+=== Naukri Scheduler Status ===
+Installed: YES
+Loaded: YES
+```
+
+#### Pause the scheduler
+
+```bash
+scripts/pause_naukri_scheduler.sh
+```
+
+This temporarily unloads the scheduler.
+
+Pausing does **not** delete the installed scheduler configuration or
+application/runtime data.
+
+#### Resume the scheduler
+
+```bash
+scripts/resume_naukri_scheduler.sh
+```
+
+This loads the already-installed scheduler again.
+
+#### View scheduler logs
+
+Scheduled runs write their logs to:
+
+```text
+scheduler_logs/
+```
+
+List all scheduler logs:
+
+```bash
+ls -lah scheduler_logs/
+```
+
+Show the newest scheduler log:
+
+```bash
+ls -t scheduler_logs/*.log | head -1
+```
+
+Show the last 100 lines of the newest scheduler log:
+
+```bash
+tail -n 100 "$(ls -t scheduler_logs/*.log | head -1)"
+```
+
+#### Manually run Naukri
+
+The scheduler is optional. You can always run the existing Naukri flow
+manually:
+
+```bash
+.venv/bin/python naukri_apply.py
+```
+
+This does not require the scheduler to be installed.
+
+#### Safely test the scheduler wrapper
+
+To verify the scheduler wrapper without starting Naukri:
+
+```bash
+scripts/run_naukri_scheduled.sh --check
+```
+
+This checks the project directory, Python executable, and scheduler log
+directory.
+
+It does **not** search for jobs or submit applications.
+
+#### Completely uninstall the scheduler
+
+```bash
+scripts/uninstall_naukri_scheduler.sh
+```
+
+This unloads the LaunchAgent and removes:
+
+```text
+~/Library/LaunchAgents/com.naukri.linkedin-ai.naukri.plist
+```
+
+It does **not** delete:
+
+- `applications_log.csv`
+- `processed_jobs.csv`
+- `external_jobs.csv`
+- `tailored_jobs.csv`
+- Google Sheets data
+- Naukri session data
+- LinkedIn session data
+- generated resumes
+- scheduler logs
+- project source files
+- any other application/runtime history
+
+#### Reinstall the scheduler later
+
+If the scheduler was completely removed and you later want it again:
+
+```bash
+scripts/install_naukri_scheduler.sh
+```
+
+No application history or previous job data needs to be recreated.
+
+### Scheduler files
+
+The scheduler implementation is stored inside the project:
+
+```text
+scripts/
+├── run_naukri_scheduled.sh
+├── install_naukri_scheduler.sh
+├── pause_naukri_scheduler.sh
+├── resume_naukri_scheduler.sh
+├── naukri_scheduler_status.sh
+└── uninstall_naukri_scheduler.sh
+
+launchd/
+└── com.naukri.linkedin-ai.naukri.plist
+```
+
+The installed macOS LaunchAgent is separate from the Git repository:
+
+```text
+~/Library/LaunchAgents/com.naukri.linkedin-ai.naukri.plist
+```
+
+### Scheduler runtime files
+
+The scheduler uses these local runtime paths:
+
+```text
+scheduler_logs/
+.scheduler.lock/
+```
+
+`scheduler_logs/` contains scheduler execution logs.
+
+`.scheduler.lock/` is used to prevent overlapping Naukri runs.
+
+These runtime files should remain local and should not be committed to Git.
+
+### Important macOS behavior
+
+This scheduler is a local macOS user LaunchAgent.
+
+The Mac needs to be available for scheduled automation to run reliably, and
+browser-based automation may require an active logged-in desktop session.
+
+The scheduler does not bypass:
+
+- CAPTCHA
+- OTP
+- security verification
+- anti-bot controls
+- authentication protections
+- other human-action requirements
+
+If the existing Naukri application flow stops for human intervention,
+the scheduler does not attempt to bypass that protection.
+
+Pausing or uninstalling the scheduler only changes the scheduling mechanism.
+It does not remove application history or project data.
+
 ## Project structure
 
-```
+```text
 naukri_apply.py           Main search + apply loop
 naukri_refresh_resume.py  Resume remove/re-upload
 login_capture.py          One-time manual login, saves session
 schedule_daemon.py        Simple time-based scheduler (for environments
-                           without reliable cron, e.g. Termux on Android)
+                          without reliable cron, e.g. Termux on Android)
 mobile_dashboard.py       Optional Flask status dashboard, phone-friendly
 profile.example.yaml      Template -- copy to profile.yaml
 .env.example              Template -- copy to .env
+scripts/
+  run_naukri_scheduled.sh Scheduler wrapper used by macOS launchd
+  install_naukri_scheduler.sh
+  pause_naukri_scheduler.sh
+  resume_naukri_scheduler.sh
+  naukri_scheduler_status.sh
+  uninstall_naukri_scheduler.sh
+launchd/
+  com.naukri.linkedin-ai.naukri.plist
 common/
   profile.py               Loads and validates profile.yaml
-  llm.py                    Dispatches to Gemini, falls back to Groq
-  gemini.py / groq_llm.py   Provider-specific clients
-  human_input.py            Terminal prompts for anything the AI can't answer
-  learned_answers.py        Remembers past answers to recurring questions
+  llm.py                   Dispatches to Gemini, falls back to Groq
+  gemini.py / groq_llm.py  Provider-specific clients
+  human_input.py           Terminal prompts for anything the AI can't answer
+  learned_answers.py       Remembers past answers to recurring questions
 ```
 
 ## Known limitations
@@ -184,4 +414,3 @@ common/
 
 MIT -- use, modify, and share freely. No warranty; see the risk notice
 above.
-Development workflow verified.
