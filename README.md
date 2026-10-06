@@ -75,12 +75,14 @@ playwright install chromium
 ### Get your free API keys
 
 **Gemini (primary):**
+
 1. Go to <https://aistudio.google.com/apikey>
 2. Sign in, click "Create API key" -- no card required for the free tier
 3. Free tier is generous (roughly 10 requests/minute, 1,500/day as of
    writing) -- check current limits there, they change
 
 **Groq (optional fallback, recommended):**
+
 1. Go to <https://console.groq.com/keys>
 2. Sign in, create a key -- also genuinely free, no card, runs open models
    like Llama
@@ -107,7 +109,7 @@ cp profile.example.yaml profile.yaml
 ```
 
 Edit `profile.yaml` with your real details: target roles, current CTC,
-notice period, work history, skills, etc. This file is the *only* source
+notice period, work history, skills, etc. This file is the _only_ source
 of truth for every answer the script gives -- nothing is invented beyond
 what's written here. It's gitignored, so your real details never get
 committed if you fork/push this repo.
@@ -176,8 +178,10 @@ common/
   yes/no-style questions out of the box (relocate, night shift, weekend
   work, immediately available, currently employed) -- extend the rules in
   `naukri_apply.py`'s `_auto_decide_option` for your own common questions.
+- Development workflow verified.
 
 ## License
 
 MIT -- use, modify, and share freely. No warranty; see the risk notice
 above.
+Development workflow verified.
