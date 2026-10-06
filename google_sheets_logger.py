@@ -154,16 +154,33 @@ def external_job_url_exists(job_url: str) -> bool:
     if not rows:
         return False
 
-    headers = rows[0]
-    try:
-        url_index = headers.index("job_url")
-    except ValueError:
+    # The application table may sit below dashboard/title rows.
+    header_row_index = None
+    url_index = None
+
+    for index, row in enumerate(rows):
+        normalized_headers = [
+            str(cell).strip().lower().replace("_", " ")
+            for cell in row
+        ]
+
+        if "job id" in normalized_headers:
+            header_row_index = index
+
+            for candidate in ("job link", "job url"):
+                if candidate in normalized_headers:
+                    url_index = normalized_headers.index(candidate)
+                    break
+
+            break
+
+    if header_row_index is None or url_index is None:
         return False
 
     normalized = job_url.strip()
     return any(
         len(row) > url_index and row[url_index].strip() == normalized
-        for row in rows[1:]
+        for row in rows[header_row_index + 1:]
     )
 
 
