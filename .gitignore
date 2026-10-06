@@ -27,3 +27,9 @@ naukri-sheets-integration-42556bd602fd.json
 debug_screenshots/
 
 processed_jobs.csv
+
+.DS_Store
+
+# Generated job-specific resumes
+generated/
+\n# Local tailored-resume manual queue\ntailored_jobs.csv\n
