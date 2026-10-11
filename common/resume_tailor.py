@@ -70,7 +70,7 @@ def _reorder_skills(skills_text: str, keywords: list[str]) -> str:
 def generate_tailored_resume(
     keywords: list[str],
     source_path: str = "Abhishek_Anand_Resume.docx",
-    output_path: str = "generated/Abhishek_Anand_Tailored_Resume.docx",
+    output_path: str = "generated/Abhishek_Anand_Resume.docx",
 ) -> str:
     """
     Generate an ATS-tailored DOCX without adding unsupported claims.

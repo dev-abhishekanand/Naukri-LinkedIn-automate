@@ -74,81 +74,68 @@ def _get_sheet():
 
 
 def _ensure_headers(sheet):
+    """Validate an existing job log or create one below dashboard data."""
     rows = sheet.get_all_values()
-
-    if not rows:
-        sheet.append_row(HEADERS)
-        return
-
-    # Find the existing job-log header row. The sheet may contain
-    # dashboard/title rows above the actual application table.
-    header_row_index = None
-    for index, row in enumerate(rows):
-        normalized = [str(cell).strip().lower() for cell in row]
-        if "job id" in normalized or "job_id" in normalized:
-            header_row_index = index
-            break
-
-    if header_row_index is None:
-        raise RuntimeError(
-            "Google Sheet job-log header row could not be found."
-        )
-
-    current = rows[header_row_index]
-
-    # Existing sheet uses human-readable headers.
+    expanded_headers = [
+        "Date Added", "Platform", "Job ID", "Job Title", "Company",
+        "Location", "Experience", "Job Link", "Status", "Notes",
+        "JD Keywords", "Missing Keywords", "Tailored Resume Path",
+    ]
     expected_existing = [
-        "date added",
-        "platform",
-        "job id",
-        "job title",
-        "company",
-        "location",
-        "experience",
-        "job link",
-        "status",
-        "notes",
+        "date added", "platform", "job id", "job title", "company",
+        "location", "experience", "job link", "status", "notes",
     ]
 
-    normalized_current = [
-        str(cell).strip().lower().replace("_", " ") for cell in current[:10]
-    ]
-
-    # Accept either "Job Link", "Job URL", or "job_url" for the URL column.
-    # Normalize the alias only for schema validation; do not rewrite the user's
-    # existing header row or any existing data.
-    if len(normalized_current) > 7 and normalized_current[7] in {"job link", "job url"}:
-        normalized_current[7] = "job link"
-
-    if normalized_current == expected_existing:
-        expanded_headers = [
-            "Date Added",
-            "Platform",
-            "Job ID",
-            "Job Title",
-            "Company",
-            "Location",
-            "Experience",
-            "Job Link",
-            "Status",
-            "Notes",
-            "JD Keywords",
-            "Missing Keywords",
-            "Tailored Resume Path",
+    # Recognize either the internal snake_case schema or human-readable headers.
+    for index, row in enumerate(rows):
+        normalized = [
+            str(cell).strip().lower().replace("_", " ") for cell in row
         ]
-        row_number = header_row_index + 1
-        sheet.update(
-            f"A{row_number}:M{row_number}",
-            [expanded_headers],
-        )
-        return
+        if normalized[:len(HEADERS)] == [h.replace("_", " ") for h in HEADERS]:
+            return
 
-    if current == HEADERS:
-        return
+        if len(normalized) >= 10:
+            comparable = normalized[:10].copy()
+            if len(comparable) > 7 and comparable[7] == "job url":
+                comparable[7] = "job link"
+            if comparable != expected_existing:
+                continue
+            # Expand the older 10-column header in place, preserving job rows.
+            if len(row) < 13 or normalized[7] == "job url":
+                row_number = index + 1
+                sheet.update(
+                    f"A{row_number}:M{row_number}",
+                    [expanded_headers],
+                    value_input_option="RAW",
+                )
+            return
 
-    raise RuntimeError(
-        "Google Sheet headers do not match the expected job-log schema."
+    # No log header exists. Keep dashboard rows intact and leave one blank row.
+    header_row_number = len(rows) + 2 if rows else 1
+    sheet.update(
+        f"A{header_row_number}:M{header_row_number}",
+        [expanded_headers],
+        value_input_option="RAW",
     )
+
+
+def append_test_job():
+    """Insert one TEST_ONLY row for logger validation; never applies to a job."""
+    test_url = "https://example.com/test-job-do-not-apply"
+    if external_job_url_exists(test_url):
+        return False
+
+    sheet = _get_sheet()
+    _ensure_headers(sheet)
+    sheet.append_row(
+        [
+            "TEST_ONLY", "test", "TEST_ONLY", "TEST ONLY — safe logger check",
+            "Example Company (not real)", "Not applicable", "", test_url,
+            "TEST_ONLY", "Test row only; no application submitted", "", "", "",
+        ],
+        value_input_option="RAW",
+    )
+    return True
 
 
 def external_job_url_exists(job_url: str) -> bool:
@@ -191,13 +178,13 @@ def external_job_url_exists(job_url: str) -> bool:
 
 
 def append_applied_job(card: dict):
-    """Log a verified successful Naukri application to the existing job sheet."""
+    """Log a verified successful application to the existing job sheet."""
     sheet = _get_sheet()
     _ensure_headers(sheet)
 
     sheet.append_row([
         card.get("discovered_at", ""),
-        "naukri",
+        card.get("platform", "naukri"),
         card.get("jobId", ""),
         card.get("title", ""),
         card.get("company", ""),
@@ -205,7 +192,7 @@ def append_applied_job(card: dict):
         card.get("exp", ""),
         card.get("href", ""),
         "APPLIED",
-        "Application submission verified by Naukri",
+        card.get("notes", "Application submission verified"),
         "",
         "",
         "",
@@ -220,18 +207,18 @@ def append_external_job(card: dict):
 
     sheet.append_row([
         card.get("discovered_at", ""),
-        "naukri",
+        card.get("platform", "naukri"),
         card.get("jobId", ""),
         card.get("title", ""),
         card.get("company", ""),
         card.get("location", ""),
         card.get("exp", ""),
         card.get("href", ""),
-        "PENDING",
-        "External company application - manual completion required",
-        "",
-        "",
-        "",
+        card.get("status", "PENDING"),
+        card.get("notes", "External company application - manual completion required"),
+        card.get("jd_keywords", ""),
+        card.get("missing_keywords", ""),
+        card.get("tailored_resume_path", ""),
     ])
     return True
 

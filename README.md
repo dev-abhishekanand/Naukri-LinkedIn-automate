@@ -1,56 +1,53 @@
-# Naukri Auto-Apply
+# Naukri & LinkedIn AI Job Automation Suite
 
-A personal automation tool that searches Naukri.com for jobs matching your
-profile, applies to them, and answers screening questions -- using your own
-browser session and a free AI provider (Gemini and/or Groq) to draft
-free-text answers strictly from facts you provide.
+A production-ready personal automation suite that searches **Naukri.com** and **LinkedIn** for target roles, automatically applies, answers complex screening questionnaires using facts from your profile, tailors ATS-compliant PDF resumes, conducts automated cold outreach to hiring recruiters on LinkedIn posts, and tracks all applications and obstacles in a live Google Sheet.
 
-Also includes a resume refresh script (remove + re-upload, to keep your
-profile showing as recently active) and an optional mobile-friendly status
-dashboard.
+Features:
+- **Naukri Auto-Apply (`naukri_apply.py`)**: Automated search, filtering, and multi-step screening question handling with unattended mode support.
+- **LinkedIn Easy Apply (`linkedin_apply.py`)**: Automated Easy Apply application flow, contact form completion, and profile gap detection.
+- **LinkedIn Hiring Posts Cold Outreach (`linkedin_posts_outreach.py`)**: Scrapes recent hiring posts, extracts recruiter email and phone, compiles a tailored PDF resume, drafts high-converting cold pitches via Gemini (Groq fallback), provides interactive terminal review (`[Y/s/e/q]`), and delivers emails via Gmail SMTP SSL.
+- **Google Sheets Tracker (`google_sheets_logger.py`)**: Real-time sync for applied jobs, unapplied external links, and recruiter obstacles (`PENDING_MANUAL_DM`) with direct post URLs and resume paths.
+- **Human-Presentable PDF Resume Pipeline**: Automatically converts tailored resumes into single-page, universally readable `.pdf` files. Delivered to recruiters with clean, human names (e.g. `Abhishek_Anand_React_Developer.pdf`) with zero AI or bot tags.
+- **macOS Morning Scheduler (`launchd`)**: Runs unattended applications automatically Monday through Friday at 09:00 AM IST with a daily limit of 10 applications.
 
 ## Read this before you use it
 
-**This automates actions against Naukri's terms of service.** Naukri (like
-most job platforms) prohibits automated applying, and can detect and
-suspend accounts for bot-like activity. This tool tries to reduce that risk
-(pacing between actions, stopping instantly on any CAPTCHA or rate-limit
-warning, using a real logged-in browser session rather than headless
-scraping) but it cannot eliminate the risk. You are running this against
-your own account, at your own discretion, and the consequences are yours
-to weigh.
+**Automated applying interacts with platform interfaces.** Both Naukri and LinkedIn have anti-bot protections. This suite reduces risk by running authentic logged-in browser contexts (not raw scrapers), pacing actions with human-like delays, stopping on security checkpoints, and saving state locally. You run this against your own authenticated accounts at your own discretion.
 
-**The script never sees or stores your password.** You log into Naukri by
-hand in a real browser window; the script only reuses the resulting
-session cookies.
+**The scripts never see or store your passwords.** You log into Naukri and LinkedIn once via `login_capture.py`. The resulting session cookies are saved locally (`session_naukri.json`, `session_linkedin.json`) and gitignored.
 
-**Datacenter IPs get blocked.** Naukri's infrastructure blocks traffic
-from cloud-hosting IP ranges (AWS, Oracle Cloud, GCP, etc.) at the network
-level. Run this from a residential IP -- your own computer, phone, or a
-device on your home network -- not a rented cloud server.
+**Datacenter IPs get blocked.** Platforms block cloud provider IP ranges (AWS, GCP, DigitalOcean). Always run this tool from a residential machine (your Mac / home network).
 
 ## What it does
 
-- Searches Naukri for your configured target roles, paginating through
-  results
-- Filters out jobs that don't match your actual experience range, excluded
-  companies, or role keywords
-- Applies to matching listings and answers the post-apply screening chat:
-  - Recurring fields (experience, notice period, CTC, location, shift
-    preference) are filled from your profile -- no AI call needed
-  - Open-text questions are drafted by a free-tier LLM (Gemini, with an
-    automatic fallback to Groq if Gemini's quota is exhausted), strictly
-    from facts in your profile -- it will refuse to invent anything and
-    ask you directly instead
-  - Radio/checkbox questions are auto-answered when your profile clearly
-    covers it (e.g. "willing to relocate?"), and pause to ask you in the
-    terminal otherwise
-  - Sensitive personal fields (date of birth, PAN, Aadhaar, etc.) are
-    never guessed -- always routed to you
-- Verifies each application actually went through before logging it as
-  successful, rather than assuming success
-- Logs every outcome (applied / skipped / stopped, with a reason) to
-  `applications_log.csv`
+### 1. Automated Job Applying (Naukri & LinkedIn)
+- Searches for configured target roles (React Developer, Frontend Engineer, Next.js, etc.) up to the daily cap (default: 10 applications).
+- Filters out jobs by experience floor/ceiling, excluded companies, and title requirements.
+- Automatically handles screening questions from your `profile.yaml`:
+  - Standard fields (experience, notice period, current/expected CTC, location, shifts) are auto-filled directly.
+  - Open-ended technical questions are answered by Gemini / Groq strictly using your real achievements.
+  - `--unattended` mode fast-skips unanswered screening questions, logging the reason and job link to Google Sheets without pausing the automated run.
+- Verifies application submission on the confirmation page before logging.
+
+### 2. LinkedIn Hiring Posts Cold Outreach
+- Discovers recent hiring posts for your target roles on LinkedIn.
+- Recovers recruiter/HR emails, phone numbers, and company names.
+- Dynamically tailors your resume for the post and compiles a pixel-perfect **PDF** (`Abhishek_Anand_{Role}.pdf`).
+- Drafts a hyper-personalized cold email pitch highlighting candidate metrics and immediate availability.
+- Displays an interactive preview in the terminal:
+  - `[Y]es`: Sends email with PDF attached via Gmail SMTP.
+  - `[s]kip`: Skips this post and logs to Google Sheets.
+  - `[e]dit`: Allows manual editing of email body in terminal.
+  - `[q]uit`: Exits the run.
+- **Obstacle Handling:** If a hiring post has no direct email address (requires LinkedIn DM), the bot logs it to Google Sheets as `PENDING_MANUAL_DM` with the recruiter's profile URL so you can reach out directly.
+
+### 3. Google Sheets Unified Tracking
+- Synchronizes every action to your Google Sheet:
+  - `APPLIED` / `EMAILED`: Successful applications and outreach.
+  - `PENDING_MANUAL_DM`: Hiring posts requiring direct messaging.
+  - `PENDING` / `SKIPPED`: External application portals or skipped jobs.
+  - `TAILORED_MANUAL`: Jobs tailored requiring manual submission.
+  - Direct links to recruiter profiles, job postings, and tailored PDF resumes.
 
 ## Requirements
 
@@ -98,8 +95,11 @@ cp .env.example .env
 Edit `.env` and fill in:
 
 ```text
-GEMINI_API_KEY=your-real-key-here
-GROQ_API_KEY=your-real-key-here          # optional but recommended
+GEMINI_API_KEY=your-gemini-api-key
+GROQ_API_KEY=your-groq-api-key                  # fallback LLM
+GOOGLE_SHEETS_SPREADSHEET_ID=your-sheet-id      # Google Sheets tracker ID
+GMAIL_USER=your-email@gmail.com                 # for cold outreach
+GMAIL_APP_PASSWORD=your-16-char-app-password    # Google Account App Password
 ```
 
 ### Configure your profile
@@ -108,66 +108,84 @@ GROQ_API_KEY=your-real-key-here          # optional but recommended
 cp profile.example.yaml profile.yaml
 ```
 
-Edit `profile.yaml` with your real details: target roles, current CTC,
-notice period, work history, skills, etc. This file is the _only_ source
-of truth for every answer the script gives -- nothing is invented beyond
-what's written here. It's gitignored, so your real details never get
-committed if you fork/push this repo.
+Edit `profile.yaml` with your real facts: target roles, current CTC, notice period, work history, skills, contact info, etc. This file is the single source of truth for all form answers.
 
-Put your resume in the project folder with the exact filename set in
-`resume_file_name`.
+Key parameters in `profile.yaml`:
+```yaml
+stop_after_n_applications: 10          # Daily cap for applications
+pace_seconds_between_actions: 15       # Pacing between browser actions
+browser_mode: "minimized"              # minimized | visible | headless
+resume_file_name: "Abhishek_Anand_Resume.docx"
+```
 
-### Capture your login session
+### Capture your login sessions
+
+Capture your authenticated cookies for both platforms:
 
 ```bash
+# 1. Naukri session
 python login_capture.py naukri
+
+# 2. LinkedIn session
+python login_capture.py linkedin
 ```
 
-A real browser window opens. Log in by hand -- password, OTP, any
-verification. Once you're on your logged-in Naukri homepage, go back to
-the terminal and press Enter. This saves `session_naukri.json` (gitignored
--- treat it like a password, it's equivalent to being logged in).
+A browser window will open. Complete login (password + OTP). Once on your home feed, press Enter in the terminal to save `session_naukri.json` and `session_linkedin.json`.
 
-### Run it
+---
 
-Start small -- set `stop_after_n_applications: 5` in `profile.yaml` for
-your first run, and watch the browser window while it works:
+## Running the Automation
+
+### 1. Daily Job Applications (Naukri & LinkedIn)
+
+Run manually or test with the interactive terminal:
+```bash
+# Naukri apply (interactive or unattended)
+.venv/bin/python naukri_apply.py
+.venv/bin/python naukri_apply.py --unattended
+
+# LinkedIn Easy Apply (interactive or unattended)
+.venv/bin/python linkedin_apply.py
+.venv/bin/python linkedin_apply.py --unattended
+```
+
+### 2. LinkedIn Hiring Posts Cold Outreach
+
+Discover hiring posts, extract recruiter emails, tailor PDF resumes, and send cold emails:
 
 ```bash
-python naukri_apply.py
+# Interactive review mode (prompts [Y/s/e/q] before sending):
+.venv/bin/python linkedin_posts_outreach.py --role "React Developer"
+
+# Dry run mode (scrapes, tailors, drafts, and logs without sending):
+.venv/bin/python linkedin_posts_outreach.py --role "React Developer" --dry-run
+
+# Custom cap:
+.venv/bin/python linkedin_posts_outreach.py --max-emails 10
 ```
 
-### Resume refresh (optional)
+### 3. Resume refresh (optional)
 
 ```bash
 python naukri_refresh_resume.py
 ```
 
-Removes and re-uploads your resume to keep your profile showing recent
-activity. Can be scheduled (cron / Windows Task Scheduler) to run a few
-times a day.
+Removes and re-uploads your resume to keep your profile showing recent activity.
 
-## macOS Naukri Scheduler
+---
 
-The project includes an optional macOS `launchd` scheduler for automatically
-running the existing Naukri application flow on weekdays.
+## macOS Weekday Morning Scheduler (`launchd`)
 
-The scheduler is **local to this Mac**. It does not run on GitHub or on a
-remote server, and it does not change `naukri_apply.py` or the existing
-application logic.
+The project includes a configured macOS `launchd` service that runs the full job application pipeline every morning unattended.
 
 ### Schedule
 
-The scheduler runs:
+- **Days:** Monday through Friday
+- **Time:** 09:00 AM IST
+- **Sequence:** Runs `naukri_apply.py --unattended` followed by `linkedin_apply.py --unattended`
+- **Cap:** 10 applications per platform per morning
+- **Safety:** Built-in lock protection prevents overlapping runs; skips personal questions safely to avoid stalling.
 
-- Monday through Friday
-- At 9:05 AM
-- Using this project's `.venv`
-- Running the existing `naukri_apply.py`
-- With the existing CAPTCHA, OTP, security-verification, and human-action
-  safety behavior preserved
-- With overlap protection so two scheduled Naukri runs cannot run at the
-  same time
 
 ### Scheduler command reference
 
@@ -371,29 +389,40 @@ It does not remove application history or project data.
 ## Project structure
 
 ```text
-naukri_apply.py           Main search + apply loop
-naukri_refresh_resume.py  Resume remove/re-upload
-login_capture.py          One-time manual login, saves session
-schedule_daemon.py        Simple time-based scheduler (for environments
-                          without reliable cron, e.g. Termux on Android)
-mobile_dashboard.py       Optional Flask status dashboard, phone-friendly
-profile.example.yaml      Template -- copy to profile.yaml
-.env.example              Template -- copy to .env
+naukri_apply.py              Main Naukri search + apply loop (supports --unattended)
+linkedin_apply.py            LinkedIn Easy Apply bot (supports --unattended)
+linkedin_posts_outreach.py   LinkedIn hiring posts scraper, resume tailor & cold emailer
+google_sheets_logger.py      Unified Google Sheets logging for applications & obstacles
+naukri_refresh_resume.py     Resume remove/re-upload to maintain freshness
+login_capture.py             Interactive session cookie capturer (Naukri & LinkedIn)
+schedule_daemon.py           Fallback time-based runner daemon
+mobile_dashboard.py          Flask status dashboard, phone-friendly
+profile.example.yaml         Profile facts & preferences template -> profile.yaml
+.env.example                 Secrets template -> .env
+
 scripts/
-  run_naukri_scheduled.sh Scheduler wrapper used by macOS launchd
+  run_naukri_scheduled.sh    Master scheduler script (runs Naukri + LinkedIn sequentially)
   install_naukri_scheduler.sh
   pause_naukri_scheduler.sh
   resume_naukri_scheduler.sh
   naukri_scheduler_status.sh
   uninstall_naukri_scheduler.sh
+
 launchd/
-  com.naukri.linkedin-ai.naukri.plist
+  com.naukri.linkedin-ai.naukri.plist  macOS LaunchAgent (09:00 AM Mon-Fri)
+
 common/
-  profile.py               Loads and validates profile.yaml
-  llm.py                   Dispatches to Gemini, falls back to Groq
-  gemini.py / groq_llm.py  Provider-specific clients
-  human_input.py           Terminal prompts for anything the AI can't answer
-  learned_answers.py       Remembers past answers to recurring questions
+  profile.py                 Loads and validates profile.yaml & answer libraries
+  ats_pipeline.py            ATS resume tailoring pipeline orchestrator
+  ats_tailoring.py           Deterministic keyword & skill matching engine
+  resume_tailor.py           DOCX resume reordering & generator
+  pdf_converter.py           Subprocess-isolated DOCX to pixel-perfect PDF converter
+  cold_email_drafter.py      Gemini / Groq cold email pitch drafter
+  email_sender.py            Gmail SMTP SSL sender with humanized attachment names
+  llm.py                     Dispatches to Gemini, falls back to Groq
+  gemini.py / groq_llm.py    Provider-specific clients
+  human_input.py             Terminal prompts for questions the AI can't answer
+  learned_answers.py         Remembers past answers to recurring questions
 ```
 
 ## Known limitations

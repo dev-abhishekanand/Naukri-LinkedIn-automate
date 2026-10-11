@@ -40,6 +40,11 @@ role_required_keywords:
   "Full Stack JavaScript Developer":
     ["full stack", "fullstack", "MERN", "MERN fullstack Developer"]
 
+first_name: "Abhishek"
+last_name: "Anand"
+middle_name: ""
+phone: "+91-8839617601"
+email: "abhishek.anand.7601@gmail.com"
 current_city: "Patna"
 # relocate_cities: ["Hyderabad", "Pune", "Noida", "Delhi", "Gurgaon", "Bengaluru"] # e.g. ["Hyderabad", "Pune"] -- leave empty if you won't relocate
 relocate_cities:
@@ -109,8 +114,8 @@ job_freshness_days: 2 # Naukri's "freshness" filter -- only jobs posted in the l
 
 salary_floor_lpa: null
 
-stop_after_n_applications: 5
-pace_seconds_between_actions: 30
+stop_after_n_applications: 10
+pace_seconds_between_actions: 15
 
 # How long to wait for you to type an answer when the script hits a
 # question it can't answer safely on its own (personal details like DOB,

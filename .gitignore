@@ -30,6 +30,17 @@ processed_jobs.csv
 
 .DS_Store
 
+# Local tailored-resume manual queue
+tailored_jobs.csv
+outreach_log.csv
+
+# Resumes and PDF artifacts
+*.pdf
+Abhishek_Anand_Resume.pdf
+
 # Generated job-specific resumes
 generated/
-\n# Local tailored-resume manual queue\ntailored_jobs.csv\n
+
+# Scheduler runtime
+scheduler_logs/
+.scheduler.lock/

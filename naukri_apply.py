@@ -13,6 +13,9 @@ skipped and logged, and the run continues.
 import re
 import csv
 import time
+import os
+import sys
+import argparse
 from datetime import datetime
 from pathlib import Path
 
@@ -155,7 +158,7 @@ def _tailored_resume_filename(card: dict) -> str:
         "_",
         str(card.get("title") or "job"),
     ).strip("_")[:50]
-    return f"generated/Abhishek_Anand_Tailored_{title}_{job_id}.docx"
+    return f"generated/Abhishek_Anand_{title}_{job_id}.docx"
 
 
 def _resume_text(path: str) -> str:
@@ -735,6 +738,9 @@ def _handle_options_question(page, question: str, profile: Profile, timeout_s: i
         print(f"  (auto-picked '{auto['label']}' from your profile for: {question[:80]})")
         return True
 
+    if timeout_s == 0:
+        raise SkipJob(f"unattended: options question needs choice: {question[:120]}")
+
     options_text = "\n".join(f"  {o['idx']}: {o['label']}" for o in options)
     response = ask_user(
         f"Screening question needs a choice:\n{question}\n\nOptions:\n{options_text}\n"
@@ -896,6 +902,8 @@ def answer_screening_chat(page, profile: Profile, job_context: str, timeout_s: i
             continue
 
         if _is_sensitive_field(question):
+            if timeout_s == 0:
+                raise SkipJob(f"unattended: skipped sensitive personal field: {question[:120]}")
             response = ask_user(f"Screening question (personal detail):\n{question}", timeout_seconds=timeout_s)
             if response is None:
                 raise SkipJob(f"no response for sensitive field: {question[:120]}")
@@ -905,6 +913,8 @@ def answer_screening_chat(page, profile: Profile, job_context: str, timeout_s: i
 
         draft = llm.draft_answer(question, profile.data, job_context)
         if draft.startswith("[NEEDS_HUMAN_INPUT"):
+            if timeout_s == 0:
+                raise SkipJob(f"unattended: profile gap on question: {question[:120]}")
             response = ask_user(f"Screening question (AI couldn't answer from your profile):\n{question}",
                                  timeout_seconds=timeout_s)
             if response is None:
@@ -926,12 +936,16 @@ def _fill_freetext(page, text: str):
     """, arg=text)
 
 
-def run():
+def run(unattended: bool = False):
     profile = Profile.load()
     if not Path(SESSION_FILE).exists():
         raise SystemExit(f"{SESSION_FILE} not found. Run: python login_capture.py naukri")
 
-    human_timeout = profile.data.get("human_input_timeout_seconds", 120)
+    if unattended or os.environ.get("UNATTENDED") == "1" or not sys.stdin.isatty():
+        human_timeout = 0
+        print("Running in UNATTENDED mode: any prompt requiring human input will automatically skip.")
+    else:
+        human_timeout = profile.data.get("human_input_timeout_seconds", 120)
     max_pages = profile.data.get("max_pages_per_role", 5)
 
     applied = 0
@@ -1229,4 +1243,7 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    parser = argparse.ArgumentParser(description="Naukri auto-apply bot")
+    parser.add_argument("--unattended", action="store_true", help="Run without human intervention; skip questions requiring human input")
+    args = parser.parse_args()
+    run(unattended=args.unattended)

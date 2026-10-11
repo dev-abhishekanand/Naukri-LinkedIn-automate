@@ -59,6 +59,12 @@ class Profile:
                 else f"{d['expected_ctc_lpa']} LPA"
             ),
             "current_city": d["current_city"],
+            "first_name": d.get("first_name", "Abhishek"),
+            "last_name": d.get("last_name", "Anand"),
+            "middle_name": d.get("middle_name", ""),
+            "full_name": d.get("full_name", "Abhishek Anand"),
+            "phone": d.get("phone", "+91-8839617601"),
+            "email": d.get("email", "abhishek.anand.7601@gmail.com"),
             "relocate": "Yes" if d.get("relocate_cities") else "No",
             "night_shift": "Yes" if d.get("night_shift_ok") else "No",
             "weekend_work": "Yes" if d.get("weekend_ok") else "No",

@@ -9,7 +9,7 @@ from .resume_tailor import generate_tailored_resume
 def prepare_tailored_resume(
     job_description: str,
     master_resume_path: str = "Abhishek_Anand_Resume.docx",
-    output_path: str = "generated/Abhishek_Anand_Tailored_Resume.docx",
+    output_path: str = "generated/Abhishek_Anand_Resume.docx",
 ) -> dict[str, object]:
     """
     Run the complete ATS preparation pipeline for one job description.

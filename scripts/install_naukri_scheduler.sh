@@ -13,6 +13,6 @@ cp "$SOURCE" "$TARGET"
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$TARGET"
 
-echo "Naukri scheduler installed and loaded."
-echo "Schedule: Monday-Friday at 09:05."
+echo "Naukri + LinkedIn auto-apply scheduler installed and loaded."
+echo "Schedule: Monday-Friday at 09:00."
 echo "Plist: $TARGET"

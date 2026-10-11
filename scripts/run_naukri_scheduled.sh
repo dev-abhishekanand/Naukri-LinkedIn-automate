@@ -47,13 +47,24 @@ trap cleanup EXIT INT TERM
         exit 1
     fi
 
-    "$PYTHON" "$PROJECT_DIR/naukri_apply.py"
-    EXIT_CODE=$?
+    echo "--- [1/2] Running Naukri Apply (Unattended) ---"
+    "$PYTHON" "$PROJECT_DIR/naukri_apply.py" --unattended
+    NAUKRI_EXIT=$?
+    echo "Naukri finished with exit code: $NAUKRI_EXIT"
+
+    echo ""
+    echo "--- [2/2] Running LinkedIn Apply (Unattended) ---"
+    "$PYTHON" "$PROJECT_DIR/linkedin_apply.py" --unattended
+    LINKEDIN_EXIT=$?
+    echo "LinkedIn finished with exit code: $LINKEDIN_EXIT"
 
     echo "========================================"
-    echo "Naukri scheduled run finished: $(date)"
-    echo "Exit code: $EXIT_CODE"
+    echo "Scheduled run finished: $(date)"
+    echo "Naukri Exit: $NAUKRI_EXIT | LinkedIn Exit: $LINKEDIN_EXIT"
     echo "========================================"
 
-    exit "$EXIT_CODE"
+    if [[ $NAUKRI_EXIT -ne 0 || $LINKEDIN_EXIT -ne 0 ]]; then
+        exit 1
+    fi
+    exit 0
 } >> "$LOG_FILE" 2>&1
