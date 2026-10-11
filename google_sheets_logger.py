@@ -111,8 +111,14 @@ def _ensure_headers(sheet):
     ]
 
     normalized_current = [
-        str(cell).strip().lower() for cell in current[:10]
+        str(cell).strip().lower().replace("_", " ") for cell in current[:10]
     ]
+
+    # Accept either "Job Link", "Job URL", or "job_url" for the URL column.
+    # Normalize the alias only for schema validation; do not rewrite the user's
+    # existing header row or any existing data.
+    if len(normalized_current) > 7 and normalized_current[7] in {"job link", "job url"}:
+        normalized_current[7] = "job link"
 
     if normalized_current == expected_existing:
         expanded_headers = [
