@@ -184,6 +184,29 @@ def external_job_url_exists(job_url: str) -> bool:
     )
 
 
+def append_applied_job(card: dict):
+    """Log a verified successful Naukri application to the existing job sheet."""
+    sheet = _get_sheet()
+    _ensure_headers(sheet)
+
+    sheet.append_row([
+        card.get("discovered_at", ""),
+        "naukri",
+        card.get("jobId", ""),
+        card.get("title", ""),
+        card.get("company", ""),
+        card.get("location", ""),
+        card.get("exp", ""),
+        card.get("href", ""),
+        "APPLIED",
+        "Application submission verified by Naukri",
+        "",
+        "",
+        "",
+    ])
+    return True
+
+
 def append_external_job(card: dict):
     sheet = _get_sheet()
 
