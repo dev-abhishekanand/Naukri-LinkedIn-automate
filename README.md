@@ -164,7 +164,23 @@ Discover hiring posts, extract recruiter emails, tailor PDF resumes, and send co
 .venv/bin/python linkedin_posts_outreach.py --max-emails 10
 ```
 
-### 3. Resume refresh (optional)
+### 3. LinkedIn Frontend & React Interview Prep Scraper
+
+Scrapes real interview experiences and technical questions shared on LinkedIn, parses them into topics, specific questions, coding/machine coding tasks, system design, and tips, saving directly to the **"Frontend Interview Prep"** worksheet in Google Sheets:
+
+```bash
+# Default search (React & Frontend questions):
+.venv/bin/python linkedin_interview_scraper.py
+
+# Search a specific query:
+.venv/bin/python linkedin_interview_scraper.py --query "React interview questions"
+.venv/bin/python linkedin_interview_scraper.py --query "Frontend machine coding round"
+
+# Dry run (analyze and preview in terminal without sheet sync):
+.venv/bin/python linkedin_interview_scraper.py --dry-run
+```
+
+### 4. Resume refresh (optional)
 
 ```bash
 python naukri_refresh_resume.py
@@ -392,6 +408,7 @@ It does not remove application history or project data.
 naukri_apply.py              Main Naukri search + apply loop (supports --unattended)
 linkedin_apply.py            LinkedIn Easy Apply bot (supports --unattended)
 linkedin_posts_outreach.py   LinkedIn hiring posts scraper, resume tailor & cold emailer
+linkedin_interview_scraper.py Frontend & React interview experiences scraper
 google_sheets_logger.py      Unified Google Sheets logging for applications & obstacles
 naukri_refresh_resume.py     Resume remove/re-upload to maintain freshness
 login_capture.py             Interactive session cookie capturer (Naukri & LinkedIn)

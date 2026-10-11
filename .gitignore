@@ -33,6 +33,8 @@ processed_jobs.csv
 # Local tailored-resume manual queue
 tailored_jobs.csv
 outreach_log.csv
+interview_prep.csv
+
 
 # Resumes and PDF artifacts
 *.pdf

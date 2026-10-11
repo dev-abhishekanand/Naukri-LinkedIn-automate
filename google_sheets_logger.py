@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 from pathlib import Path
 
@@ -41,7 +42,7 @@ def _load_dotenv():
             return
 
 
-def _get_sheet():
+def _get_spreadsheet():
     _load_dotenv()
     spreadsheet_id = os.getenv(SPREADSHEET_ID_ENV)
 
@@ -68,9 +69,11 @@ def _get_sheet():
 
     client = gspread.authorize(credentials)
     client.set_timeout((10, 20))
-    spreadsheet = client.open_by_key(spreadsheet_id)
+    return client.open_by_key(spreadsheet_id)
 
-    return spreadsheet.sheet1
+
+def _get_sheet():
+    return _get_spreadsheet().sheet1
 
 
 def _ensure_headers(sheet):
@@ -244,3 +247,66 @@ def append_tailored_job(card: dict):
         card.get("tailored_resume_path", ""),
     ])
     return True
+
+
+INTERVIEW_PREP_HEADERS = [
+    "Date Added", "Company", "Role / Level", "Round Type",
+    "Topics Asked", "Questions Asked", "Coding / Machine Coding Task",
+    "Frontend System Design", "Tips & Insights", "Post Link", "Author",
+]
+
+
+def get_or_create_interview_prep_sheet():
+    """Gets or creates the 'Frontend Interview Prep' worksheet."""
+    spreadsheet = _get_spreadsheet()
+    sheet_title = "Frontend Interview Prep"
+    try:
+        sheet = spreadsheet.worksheet(sheet_title)
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = spreadsheet.add_worksheet(title=sheet_title, rows=200, cols=len(INTERVIEW_PREP_HEADERS))
+
+    rows = sheet.get_all_values()
+    if not rows or rows[0][:len(INTERVIEW_PREP_HEADERS)] != INTERVIEW_PREP_HEADERS:
+        if not rows:
+            sheet.append_row(INTERVIEW_PREP_HEADERS, value_input_option="RAW")
+        else:
+            sheet.insert_row(INTERVIEW_PREP_HEADERS, index=1, value_input_option="RAW")
+    return sheet
+
+
+def append_interview_prep(entry: dict) -> bool:
+    """Appends an interview experience entry to the 'Frontend Interview Prep' worksheet."""
+    sheet = get_or_create_interview_prep_sheet()
+    sheet.append_row([
+        entry.get("discovered_at", datetime.now().strftime("%Y-%m-%d %H:%M")),
+        entry.get("company", "Various / General"),
+        entry.get("role_level", "Frontend / React Developer"),
+        entry.get("round_type", "Technical Round"),
+        entry.get("topics", ""),
+        entry.get("questions_asked", ""),
+        entry.get("coding_tasks", ""),
+        entry.get("system_design", ""),
+        entry.get("tips", ""),
+        entry.get("post_link", ""),
+        entry.get("author", ""),
+    ], value_input_option="RAW")
+    return True
+
+
+def interview_post_url_exists(post_url: str) -> bool:
+    """Checks if a LinkedIn interview post URL is already recorded."""
+    if not post_url:
+        return False
+    try:
+        sheet = get_or_create_interview_prep_sheet()
+        rows = sheet.get_all_values()
+        if len(rows) <= 1:
+            return False
+        clean_url = post_url.strip().lower()
+        for r in rows[1:]:
+            if len(r) > 9 and r[9].strip().lower() == clean_url:
+                return True
+        return False
+    except Exception:
+        return False
+
