@@ -23,7 +23,7 @@ from common import llm
 from common import learned_answers
 from common.human_input import ask_user
 from common.ats_pipeline import prepare_tailored_resume
-from google_sheets_logger import append_external_job, append_tailored_job, external_job_url_exists
+from google_sheets_logger import append_applied_job, append_external_job, append_tailored_job, external_job_url_exists
 
 SESSION_FILE = "session_naukri.json"
 LOG_FILE = "applications_log.csv"
@@ -1171,6 +1171,19 @@ def run():
 
                             log_row([datetime.now(), "naukri", card.get("title"),
                                       card.get("company"), "applied", ""])
+                            try:
+                                append_applied_job({
+                                    "discovered_at": datetime.now().isoformat(),
+                                    "jobId": card.get("jobId"),
+                                    "title": card.get("title"),
+                                    "company": card.get("company"),
+                                    "location": card.get("location"),
+                                    "exp": card.get("exp"),
+                                    "href": card.get("href"),
+                                })
+                                print("Google Sheets: verified application logged")
+                            except Exception as e:
+                                print(f"Google Sheets application logging failed: {e}")
                             print(f"Applied: {card.get('title')} @ {card.get('company')} ({applied} total)")
                         else:
                             shot_path = _save_debug_screenshot(page, card.get("title"))
