@@ -22,6 +22,8 @@ fi
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 LOG_FILE="$LOG_DIR/naukri_$TIMESTAMP.log"
 
+HEADLINE_LOCK="$PROJECT_DIR/.headline.lock"
+
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     echo "[$(date)] Another Naukri run is already active. Exiting." >> "$LOG_FILE"
     exit 0
@@ -31,6 +33,15 @@ cleanup() {
     rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+# Wait up to 3 minutes if morning headline freshness run is still completing
+MAX_WAIT=180
+WAITED=0
+while [[ -d "$HEADLINE_LOCK" && $WAITED -lt $MAX_WAIT ]]; do
+    echo "[$(date)] Waiting for 8:55 AM headline freshness to complete (.headline.lock active)..." >> "$LOG_FILE"
+    sleep 10
+    WAITED=$((WAITED + 10))
+done
 
 {
     echo "========================================"
