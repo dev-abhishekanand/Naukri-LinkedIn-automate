@@ -144,13 +144,26 @@ resume_file_name: "Abhishek_Anand_Resume.docx" # must match the filename already
 # as "Updated: Today" on Naukri Recruiter search (Resdex). Max 250 characters.
 # ==========================================================================
 naukri_headline_pool:
-  - "React Developer | Frontend & Full Stack Engineer | React.js, Next.js, TypeScript, Tailwind | 3.5+ Years | Remote | Immediate Joiner"
-  - "Frontend Developer | React.js, Next.js, TypeScript | UI Engineer | Modern Web Apps | 3.5+ Years Exp | Immediate Joiner"
-  - "React.js Developer | Frontend Engineer | Redux, Next.js, Tailwind CSS | 3.5+ Years Exp | Immediate Joiner"
-  - "Full Stack JavaScript Developer | React, Node.js, TypeScript | 3.5+ Yrs Exp | Remote | Available Immediately"
-  - "Senior Frontend Engineer | React Developer | TypeScript, Next.js, Performance & UI | 3.5+ Years | Immediate Joiner"
-  - "React Developer | Frontend Engineer | Next.js, TypeScript, REST & GraphQL APIs | 3.5+ Yrs | Immediate Joiner"
-  - "Frontend Engineer | React.js, TypeScript, Next.js Developer | Scalable Web Apps | 3.5+ Years | Immediate Joiner"
+  # Monday: Core Heavy-Hitter (Keywords + Zero Notice Period)
+  - "React Developer | Frontend Engineer | React.js, Next.js, TypeScript, Tailwind | 3.5+ Yrs Exp | Immediate Joiner (0 Days Notice) | Scalable Web Apps & Clean Code | Open to Bengaluru, Hyderabad, Pune, Noida & Remote"
+
+  # Tuesday: Modern UI & Web Performance Specialist
+  - "Frontend Developer | React.js, Next.js, TypeScript | High-Performance UI Engineer | 3.5+ Years Experience | Immediate Joiner | Core Web Vitals, Redux Toolkit, Tailwind CSS | Available for Interviews Immediately"
+
+  # Wednesday: Data Layer & State Architecture
+  - "React.js Developer | Frontend Engineer | Redux Toolkit, TanStack Query, REST & GraphQL APIs | 3.5+ Yrs Exp | Available Immediately (0 Days Notice) | Complex Enterprise Dashboards & Data-Driven UIs | Open to Relocate"
+
+  # Thursday: Scalable Architecture & Clean Code
+  - "Senior Frontend Engineer | React Developer | TypeScript, Next.js, Component Libraries | 3.5+ Years Exp | Immediate Joiner | Scalable Architecture, Micro Frontends & Responsive Web Apps | Serving 0 Days Notice"
+
+  # Friday: Testing, Quality & Production-Ready Code
+  - "Frontend Engineer | React.js, Next.js, TypeScript Developer | Unit Testing (Jest), Tailwind, Git | 3.5+ Yrs Experience | Immediate Joiner | Production-Ready Code & Fast Delivery | Available for Technical Calls"
+
+  # Saturday: Real-time, Modern Tooling & Full-Stack JS
+  - "React Developer | Frontend Specialist | Next.js, TypeScript, Node.js, WebSockets | 3.5+ Yrs Exp | Immediate Joiner (0 Days Notice) | Real-time Web Apps, Modern Tooling (Vite) | Open to Top Product Teams"
+
+  # Sunday: Weekly Interview Closer (Direct Call to Action)
+  - "Frontend Developer | React.js, Next.js, TypeScript | UI Engineering & State Management | 3.5+ Years Exp | Immediate Joiner | 100% Ready for Technical Interview Rounds | Open to Relocation & Remote Roles"
 
 # ==========================================================================
 # NAUKRI KEY SKILLS (Up to 30 tags)
@@ -276,13 +289,26 @@ naukri_work_sample:
 # Keeps profile marked as recently active and elevates Recruiter search ranking.
 # ==========================================================================
 linkedin_headline_pool:
-  - "React Developer | Frontend Engineer | React.js, Next.js, TypeScript, Tailwind | 3.5+ Yrs | Immediate Joiner"
-  - "Frontend Developer | React.js, Next.js, TypeScript | UI Engineer | Modern Web Apps | 3.5+ Yrs Exp | Immediate Joiner"
-  - "React.js Developer | Frontend Engineer | Redux Toolkit, Next.js, REST & GraphQL | 3.5+ Yrs | Available Immediately"
-  - "Frontend Engineer | React, Next.js, TypeScript | Scalable UI Architectures & Performance | 3.5+ Yrs | Immediate Joiner"
-  - "Senior Frontend Engineer | React Developer | TypeScript, Next.js, UI/UX & Clean Code | 3.5+ Yrs | Immediate Joiner"
-  - "React Developer | Frontend Specialist | Next.js, TypeScript, TanStack Query, Tailwind | 3.5+ Yrs | Immediate Joiner"
-  - "Frontend Engineer | React.js, TypeScript, Next.js Developer | UI Engineering & State Management | Immediate Joiner"
+  # Monday: Core Keyword & Immediate Joiner Anchor
+  - "React Developer | Frontend Engineer | React.js, Next.js, TypeScript, Tailwind | 3.5+ Yrs Exp | Immediate Joiner (0 Days) | Building Scalable, High-Performance Web Apps"
+
+  # Tuesday: UI Engineering & Performance Specialist
+  - "Frontend Engineer | React.js, Next.js, TypeScript | UI Specialist | 3.5+ Yrs Exp | Immediate Joiner | High-Performance Web Apps, Redux Toolkit, Responsive Systems"
+
+  # Wednesday: Data Architecture & APIs
+  - "React.js Developer | Frontend Engineer | Next.js, Redux Toolkit, TanStack Query, GraphQL | 3.5+ Yrs Exp | Immediate Joiner (0 Days Notice) | Data-Driven Enterprise UIs"
+
+  # Thursday: Senior Architecture & Modern Stack
+  - "Senior Frontend Engineer | React Developer | TypeScript, Next.js, Tailwind CSS | 3.5+ Yrs | Immediate Joiner | Scalable Component Architecture & Modern Web Solutions"
+
+  # Friday: Quality, Testing & Clean Engineering
+  - "React Developer | Frontend Engineer | React.js, Next.js, TypeScript, Jest | 3.5+ Yrs Exp | Immediate Joiner | Production-Grade Code & Modern Web Development"
+
+  # Saturday: Real-time & Full Stack JS
+  - "Frontend Specialist | React.js, Next.js, TypeScript, WebSockets | 3.5+ Yrs Exp | Immediate Joiner (0 Days Notice) | Real-Time UIs, REST/GraphQL & Fast Delivery"
+
+  # Sunday: Interview-Ready Call-to-Action
+  - "Frontend Developer | React.js, Next.js, TypeScript | 3.5+ Yrs Experience | Immediate Joiner (0 Days Notice) | Open for SDE-2 / Frontend Engineer Interview Calls"
 
 # ==========================================================================
 # LINKEDIN CURATED SKILLS TAXONOMY (Strictly 50 High-Demand Skills)
