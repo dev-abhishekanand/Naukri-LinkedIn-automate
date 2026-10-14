@@ -80,33 +80,33 @@ def analyze_interview_post(post_text: str, author: str = "", headline: str = "")
     )
 
     raw_response = ""
+    # Try Groq first (lightning fast, native JSON mode)
     try:
-        client = _get_gemini_client()
-        from google.genai import types as genai_types
-        config = genai_types.GenerateContentConfig(
+        groq_client = _get_groq_client()
+        resp = groq_client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
-            response_mime_type="application/json",
+            response_format={"type": "json_object"},
         )
-        resp = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=config,
-        )
-        raw_response = resp.text.strip()
+        raw_response = resp.choices[0].message.content.strip()
     except Exception as e:
-        if not llm._looks_like_quota_error(e):
-            print(f"  (Gemini analysis error: {e}. Trying Groq...)")
+        print(f"  (Groq unavailable: {e}. Trying Gemini...)")
         try:
-            groq_client = _get_groq_client()
-            resp = groq_client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
+            client = _get_gemini_client()
+            from google.genai import types as genai_types
+            config = genai_types.GenerateContentConfig(
                 temperature=0.2,
-                response_format={"type": "json_object"},
+                response_mime_type="application/json",
             )
-            raw_response = resp.choices[0].message.content.strip()
+            resp = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config=config,
+            )
+            raw_response = resp.text.strip()
         except Exception as e2:
-            print(f"  (Groq analysis also failed: {e2})")
+            print(f"  (Gemini analysis also failed: {e2})")
             return {"is_interview": False}
 
     try:

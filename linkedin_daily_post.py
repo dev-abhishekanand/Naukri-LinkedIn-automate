@@ -219,6 +219,50 @@ FRONTEND_TOPICS = [
         "category": "Networking & APIs",
         "title": "GraphQL vs REST: Over-fetching, Under-fetching & the N+1 Problem",
         "prompt": "Explain the architectural trade-offs between REST and GraphQL. Discuss the client perspective (single query for nested resources vs multiple roundtrips) and the backend challenge of the N+1 query problem and how DataLoader solves it."
+    },
+
+    # Category 7: High-Frequency Tech Interview Questions (FAANG & Unicorns)
+    {
+        "id": "react_usememo_usecallback_when_to_use",
+        "category": "Interview Deep-Dive",
+        "title": "useMemo, useCallback & React.memo: When They Help vs When They Waste Memory",
+        "prompt": "Deep dive into a favorite interview question at Flipkart and Google: 'Why shouldn't you wrap every function in useCallback?' Explain the overhead of dependency array comparison and closure allocation, the referential equality problem with child components, and how to use React DevTools Profiler to prove whether memoization actually saved a render."
+    },
+    {
+        "id": "nextjs_hydration_mismatch_causes",
+        "category": "Interview Deep-Dive",
+        "title": "Why Hydration Errors Occur in Next.js & How to Eliminate Them",
+        "prompt": "Deep dive into Next.js and React 18 hydration mismatches. Explain what hydration actually does (reconciling server HTML with client Virtual DOM tree). Cover the top causes: typeof window !== undefined checks, date/time formatting, Math.random(), browser extensions injecting DOM nodes, and the useEffect / dynamic import fixes."
+    },
+    {
+        "id": "js_polyfills_promise_allsettled",
+        "category": "Interview Deep-Dive",
+        "title": "Writing Polyfills Under Interview Pressure: Promise.allSettled & Array.flat",
+        "prompt": "Explain how to write custom polyfills from scratch in a machine coding round. Show the exact implementation of Promise.allSettled() ensuring all promises resolve/reject before resolving the master promise, and recursive Array.prototype.flat(depth)."
+    },
+    {
+        "id": "system_design_100k_chat",
+        "category": "Frontend System Design",
+        "title": "Frontend System Design: Real-Time Chat & Offline Sync (100k Users)",
+        "prompt": "Architect a real-time messaging application frontend for 100k concurrent users. Cover WebSocket connection lifecycle, handling reconnection after a 5-minute network outage, client-side message deduplication, optimistic sending, and IndexedDB local caching."
+    },
+    {
+        "id": "react_handling_race_conditions",
+        "category": "Interview Deep-Dive",
+        "title": "Eliminating Network Race Conditions in React (AbortController & Flags)",
+        "prompt": "Deep dive into a classic interview problem: User rapidly clicks Tab A then Tab B, but Tab A request finishes last and overwrites Tab B's UI. Walk through how to cancel in-flight requests using AbortController and signal in useEffect cleanup."
+    },
+    {
+        "id": "system_design_component_library",
+        "category": "Frontend System Design",
+        "title": "Architecting an Enterprise React Component Library for Multiple Teams",
+        "prompt": "Explain how to design, package, and govern a multi-brand Design System / Component Library. Discuss headless UI vs styled components, tree-shaking with package.json exports, semantic versioning, and zero-runtime styling."
+    },
+    {
+        "id": "production_debugging_memory_leak",
+        "category": "Interview Deep-Dive",
+        "title": "Debugging Production Memory Leaks in Large React Applications",
+        "prompt": "Walk through an SDE-2 interview scenario: 'Our web app slows down after 20 minutes of usage and crashes with out-of-memory. How do you find and fix the leak?' Explain Chrome DevTools Memory Profiler (Heap Snapshot, Allocation Timeline), detached DOM trees, and uncleaned event listeners."
     }
 ]
 
