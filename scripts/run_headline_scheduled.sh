@@ -58,23 +58,29 @@ done
         exit 1
     fi
 
-    # Step 1: Rotate Profile Headline (sets "Updated: Today")
-    echo "[1/2] Updating Naukri profile headline..."
+    # Step 1: Rotate Profile Headline (sets "Updated: Today" on Naukri)
+    echo "[1/3] Updating Naukri profile headline..."
     "$PYTHON" "$PROJECT_DIR/naukri_update_headline.py" --unattended
     HEADLINE_EXIT=$?
 
-    # Step 2: Re-upload Resume (sets "Resume uploaded: Today" & 100% freshness)
-    echo "[2/2] Re-uploading resume..."
+    # Step 2: Re-upload Resume (sets "Resume uploaded: Today" & 100% freshness on Naukri)
+    echo "[2/3] Re-uploading resume to Naukri..."
     "$PYTHON" "$PROJECT_DIR/naukri_refresh_resume.py" --unattended
     RESUME_EXIT=$?
 
+    # Step 3: Rotate LinkedIn Profile Headline (elevates Recruiter search & activity signals)
+    echo "[3/3] Updating LinkedIn profile headline..."
+    "$PYTHON" "$PROJECT_DIR/linkedin_update_headline.py" --unattended
+    LINKEDIN_EXIT=$?
+
     echo "========================================"
     echo "Daily refresh finished at $(date)"
-    echo "  Headline Exit Code: $HEADLINE_EXIT"
-    echo "  Resume Exit Code:   $RESUME_EXIT"
+    echo "  Naukri Headline Exit Code: $HEADLINE_EXIT"
+    echo "  Naukri Resume Exit Code:   $RESUME_EXIT"
+    echo "  LinkedIn Headline Exit:    $LINKEDIN_EXIT"
     echo "========================================"
 
-    if [[ $HEADLINE_EXIT -ne 0 || $RESUME_EXIT -ne 0 ]]; then
+    if [[ $HEADLINE_EXIT -ne 0 || $RESUME_EXIT -ne 0 || $LINKEDIN_EXIT -ne 0 ]]; then
         exit 1
     fi
     exit 0

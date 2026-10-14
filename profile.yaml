@@ -270,4 +270,88 @@ naukri_work_sample:
   url: "https://github.com/dev-abhishekanand"
   description: "Frontend and Full Stack engineering repositories built with React.js, Next.js, TypeScript, and modern tooling."
 
+# ==========================================================================
+# LINKEDIN HEADLINE ROTATION
+# Rotates headline daily across the week (Mon-Sun). Max 220 characters.
+# Keeps profile marked as recently active and elevates Recruiter search ranking.
+# ==========================================================================
+linkedin_headline_pool:
+  - "React Developer | Frontend Engineer | React.js, Next.js, TypeScript, Tailwind | 3.5+ Yrs | Immediate Joiner"
+  - "Frontend Developer | React.js, Next.js, TypeScript | UI Engineer | Modern Web Apps | 3.5+ Yrs Exp | Immediate Joiner"
+  - "React.js Developer | Frontend Engineer | Redux Toolkit, Next.js, REST & GraphQL | 3.5+ Yrs | Available Immediately"
+  - "Frontend Engineer | React, Next.js, TypeScript | Scalable UI Architectures & Performance | 3.5+ Yrs | Immediate Joiner"
+  - "Senior Frontend Engineer | React Developer | TypeScript, Next.js, UI/UX & Clean Code | 3.5+ Yrs | Immediate Joiner"
+  - "React Developer | Frontend Specialist | Next.js, TypeScript, TanStack Query, Tailwind | 3.5+ Yrs | Immediate Joiner"
+  - "Frontend Engineer | React.js, TypeScript, Next.js Developer | UI Engineering & State Management | Immediate Joiner"
+
+# ==========================================================================
+# LINKEDIN CURATED SKILLS TAXONOMY (Strictly 50 High-Demand Skills)
+# Clean, standardized keywords recognized by LinkedIn Recruiter Skill taxonomy.
+# ==========================================================================
+linkedin_skills:
+  # 1. Core React & UI Engineering (10)
+  - "React.js"
+  - "Next.js"
+  - "TypeScript"
+  - "JavaScript"
+  - "Redux Toolkit"
+  - "Redux"
+  - "Context API"
+  - "TanStack Query"
+  - "React Router"
+  - "Virtual DOM"
+
+  # 2. Modern Web Fundamentals & Styling (8)
+  - "HTML5"
+  - "Cascading Style Sheets (CSS)"
+  - "Tailwind CSS"
+  - "Material-UI"
+  - "Sass"
+  - "Responsive Web Design"
+  - "CSS Modules"
+  - "Styled Components"
+
+  # 3. Frontend Architecture & Web Performance (8)
+  - "Front-End Development"
+  - "Web Performance Optimization"
+  - "Single Page Applications (SPA)"
+  - "Server-Side Rendering (SSR)"
+  - "Code Splitting"
+  - "Micro Frontends"
+  - "Progressive Web Applications (PWAs)"
+  - "Component-Based Software Engineering"
+
+  # 4. APIs, Data & Real-time (6)
+  - "RESTful APIs"
+  - "GraphQL"
+  - "Apollo GraphQL"
+  - "WebSockets"
+  - "Axios"
+  - "Fetch API"
+
+  # 5. Build Tools, Quality & Testing (8)
+  - "Git"
+  - "GitHub"
+  - "Vite"
+  - "Webpack"
+  - "Babel"
+  - "ESLint"
+  - "Jest"
+  - "Unit Testing"
+
+  # 6. Backend, Database & Cloud Integration (7)
+  - "Node.js"
+  - "Express.js"
+  - "MongoDB"
+  - "Docker"
+  - "Microsoft Azure"
+  - "Socket.io"
+  - "Postman API"
+
+  # 7. Engineering Practices & Agile (3)
+  - "Agile Methodologies"
+  - "Scrum"
+  - "Cross-functional Team Leadership"
+
+
 
