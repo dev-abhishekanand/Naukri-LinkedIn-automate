@@ -46,3 +46,4 @@ generated/
 # Scheduler runtime
 scheduler_logs/
 .scheduler.lock/
+sheet1_backup.json
