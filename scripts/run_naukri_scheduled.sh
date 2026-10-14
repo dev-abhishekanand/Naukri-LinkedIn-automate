@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-PROJECT_DIR="/Users/abhishekanand/Desktop/naukri-linkedin-ai"
+PROJECT_DIR="/Users/abhishekanand/naukri-linkedin-ai"
 PYTHON="$PROJECT_DIR/.venv/bin/python"
 LOG_DIR="$PROJECT_DIR/scheduler_logs"
 LOCK_DIR="$PROJECT_DIR/.scheduler.lock"

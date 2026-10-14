@@ -7,8 +7,14 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/abhishekanand/Desktop/naukri-linkedin-ai/scripts/run_naukri_scheduled.sh</string>
+        <string>/Users/abhishekanand/naukri-linkedin-ai/scripts/run_naukri_scheduled.sh</string>
     </array>
+
+    <key>StandardOutPath</key>
+    <string>/Users/abhishekanand/Library/Logs/naukri_launchd.stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/abhishekanand/Library/Logs/naukri_launchd.stderr.log</string>
 
     <key>StartCalendarInterval</key>
     <array>

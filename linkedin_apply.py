@@ -358,7 +358,11 @@ def run(unattended: bool = False):
                 + easy_apply_filter
             )
             print(f"\n--- Searching LinkedIn: {role} ---")
-            page.goto(search_url)
+            try:
+                page.goto(search_url, wait_until="domcontentloaded", timeout=45000)
+            except Exception as e:
+                print(f"  (search navigation error for {role}: {e}, skipping role)")
+                continue
             time.sleep(3)
 
             stop = page_has_stop_signal(page)
