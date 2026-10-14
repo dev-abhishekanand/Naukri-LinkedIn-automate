@@ -18,6 +18,8 @@ learned_answers.json
 
 # Local resume
 Abhishek_Anand_Resume.docx
+Abhishek_Anand_Resume_backup.docx
+*.docx
 
 # Temporary diagnostics
 linkedin_discovery_test.py
