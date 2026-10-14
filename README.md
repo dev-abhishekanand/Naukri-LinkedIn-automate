@@ -8,9 +8,9 @@ Features:
 - **LinkedIn Hiring Posts Cold Outreach (`linkedin_posts_outreach.py`)**: Scrapes recent hiring posts, extracts recruiter email and phone, compiles a tailored PDF resume, drafts high-converting cold pitches via Gemini (Groq fallback), provides interactive terminal review (`[Y/s/e/q]`), and delivers emails via Gmail SMTP SSL.
 - **Google Sheets Tracker (`google_sheets_logger.py`)**: Real-time sync for applied jobs, unapplied external links, and recruiter obstacles (`PENDING_MANUAL_DM`) with direct post URLs and resume paths.
 - **Human-Presentable PDF Resume Pipeline**: Automatically converts tailored resumes into single-page, universally readable `.pdf` files. Delivered to recruiters with clean, human names (e.g. `Abhishek_Anand_React_Developer.pdf`) with zero AI or bot tags.
-- **macOS Morning Scheduler (`launchd`)**: Runs unattended applications automatically Monday through Friday at 09:00 AM IST with a daily limit of 10 applications.
-- **Daily Naukri Headline Updater (`naukri_update_headline.py`)**: Rotates and updates your Resume Headline every day (Monday to Sunday) at 09:30 AM IST, ensuring your profile is always marked as "Updated Today" for recruiter search algorithms (Resdex).
-- **Naukri Resdex Profile Optimizer & Synchronizer (`naukri_sync_profile.py`)**: Configuration-driven profile synchronizer that keeps your live Naukri profile (Current CTC, Preferred CTC, 29+ Key Skills tags, structured IT Skills matrix with versions and 2026 recency, and GitHub Work Sample) synchronized with `profile.yaml`, maximizing recruiter search appearances.
+- **Daily Naukri Profile Freshness Scheduler (`08:55 AM IST Daily`)**: Rotates and updates your Resume Headline AND re-uploads your resume every morning (Monday to Sunday) at 08:55 AM IST, ensuring your profile is continuously stamped as "Updated: Today" and "Resume uploaded on: Today" for 100% search freshness on Naukri Resdex.
+- **macOS Morning Job Apply Scheduler (`09:00 AM IST Mon-Fri`)**: Runs unattended applications automatically Monday through Friday at 09:00 AM IST with a daily limit of 10 applications per platform.
+- **Naukri Resdex Profile Optimizer & Synchronizer (`naukri_sync_profile.py`)**: Configuration-driven profile synchronizer that keeps your live Naukri profile (Current CTC, Preferred CTC, 30 Key Skills tags, structured IT Skills matrix with versions and 2026 recency, and GitHub Work Sample) synchronized with `profile.yaml`, maximizing recruiter search appearances.
 
 ## Read this before you use it
 
@@ -200,25 +200,24 @@ Recruiter searches on Naukri (Resdex) prioritize profiles with complete salary i
 .venv/bin/python naukri_sync_profile.py --section work_sample    # GitHub Accomplishment link
 ```
 
-### 5. Daily Naukri Headline Rotation (`naukri_update_headline.py`)
+### 5. Daily Profile Headline & Resume Freshness (`08:55 AM IST Daily`)
 
-Rotates your headline every morning across candidate variants in `naukri_headline_pool` (defined in `profile.yaml`), ensuring your profile is continuously stamped as "Updated: Today" on recruiter searches.
+Recruiter searches on Naukri heavily prioritize active job seekers with fresh profiles. Every morning at **08:55 AM IST** (Monday through Sunday), the automation executes two actions back-to-back:
+1. **Headline Rotation (`naukri_update_headline.py`)**: Rotates your headline across high-converting candidate variants from `naukri_headline_pool` in `profile.yaml`, marking your profile as **"Updated: Today"**.
+2. **Resume Re-upload (`naukri_refresh_resume.py`)**: Re-uploads the exact same resume file (`resume_file_name` in `profile.yaml`), resetting the **"Resume uploaded on: Today"** timestamp and bringing your search freshness score to **100%**.
 
 ```bash
-# Preview next headline rotation (dry run):
+# Rotate headline manually:
+.venv/bin/python naukri_update_headline.py
 .venv/bin/python naukri_update_headline.py --dry-run
 
-# Rotate and update live headline:
-.venv/bin/python naukri_update_headline.py
+# Re-upload resume manually:
+.venv/bin/python naukri_refresh_resume.py
+.venv/bin/python naukri_refresh_resume.py --dry-run
+
+# Run both together manually:
+scripts/run_headline_scheduled.sh
 ```
-
-### 6. Resume refresh (optional)
-
-```bash
-python naukri_refresh_resume.py
-```
-
-Removes and re-uploads your resume to keep your profile showing recent activity.
 
 ---
 

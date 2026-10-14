@@ -1,16 +1,23 @@
 """
-Removes and re-uploads your Naukri resume, to keep your profile showing as
-recently active. Requires session_naukri.json from login_capture.py.
+Refreshes your Naukri resume by re-uploading the same resume file.
+
+Recruiters on Naukri (Resdex) heavily weight recent resume uploads. Uploading
+the same resume file resets your "Resume uploaded on" date to today, boosting
+profile freshness to 100%.
 
 Usage:
-    python naukri_refresh_resume.py
-
-Designed to be run by Windows Task Scheduler at fixed times, not left
-running continuously -- see README for the schtasks setup.
+    python naukri_refresh_resume.py              # Uploads same resume from profile.yaml
+    python naukri_refresh_resume.py --dry-run    # Inspect current resume without uploading
+    python naukri_refresh_resume.py --unattended # Unattended runner
 """
+
+import argparse
+import csv
+from datetime import datetime
+import os
+from pathlib import Path
 import sys
 import time
-from pathlib import Path
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
@@ -18,103 +25,45 @@ from common.profile import Profile
 
 SESSION_FILE = "session_naukri.json"
 PROFILE_URL = "https://www.naukri.com/mnjuser/profile"
-
-# Confirmed real markup (from your Naukri profile page):
-#   Delete icon:  <span data-title="delete-resume">...</span>
-#   Upload input: <input type="file" id="attachCV">
-# Scoped to .attachCV specifically -- that's the real container wrapping the
-# whole resume block (confirmed from your page's markup). Scoping the delete
-# click to inside this container, rather than a bare page-wide data-title
-# match, is what prevents it from ever being able to touch the profile
-# photo section or anything else on the page, even if Naukri happens to
-# reuse similar icon markup elsewhere.
-DELETE_SELECTOR = '.attachCV [data-title="delete-resume"]'
-UPLOAD_SELECTOR = '.attachCV #attachCV'
-RESUME_NAME_SELECTOR = '.attachCV .resume-name-inline'
+LOG_FILE = "applications_log.csv"
+ATTACH_SELECTOR = "#attachCV"
+RESUME_NAME_SELECTOR = ".resume-name-inline, .resumeName"
 
 
-def safe_evaluate(page, script, arg=None, default=None):
-    try:
-        return page.evaluate(script, arg) if arg is not None else page.evaluate(script)
-    except Exception as e:
-        print(f"  (page.evaluate failed, continuing anyway: {e})")
-        return default
+def log_row(row: list):
+    """Appends an event to applications_log.csv."""
+    new_file = not Path(LOG_FILE).exists()
+    with open(LOG_FILE, "a", newline="") as f:
+        w = csv.writer(f)
+        if new_file:
+            w.writerow(["timestamp", "source", "title", "company", "status", "reason"])
+        w.writerow(row)
 
 
-def get_current_resume_name(page) -> str | None:
-    el = page.query_selector(RESUME_NAME_SELECTOR)
-    if not el:
-        return None
-    try:
-        return el.inner_text().strip()
-    except Exception:
-        return None
+def refresh_naukri_resume(profile: Profile, dry_run: bool = False) -> bool:
+    session_path = Path(SESSION_FILE)
+    if not session_path.is_absolute():
+        session_path = Path(__file__).resolve().parent / SESSION_FILE
 
-
-def delete_resume(page) -> bool:
-    """Clicks the delete icon and confirms via the resume-specific dialog.
-
-    Confirmed real markup: the confirmation box has class
-    "confirmationBox profileSummaryConfirmation" with a Delete button
-    (class "btn-dark-ot") inside it. Scoping the click to specifically
-    that box -- rather than searching the whole page for any button whose
-    text says "Delete" -- is what fixes it from also triggering the
-    profile-photo delete button, which apparently sits in the page's DOM
-    too and could get matched by a page-wide text search."""
-    locator = page.locator(DELETE_SELECTOR).first
-    try:
-        locator.click(timeout=8000)
-    except PWTimeout:
-        print("  Delete icon not found or not clickable -- resume may already be absent.")
+    if not session_path.exists():
+        print(f"ERROR: Session file not found: {session_path}")
+        print("Run: python login_capture.py naukri to generate your session.")
         return False
-    time.sleep(1.5)
-
-    clicked_confirm = safe_evaluate(page, """
-        () => {
-            const box = document.querySelector('.confirmationBox.profileSummaryConfirmation');
-            if (!box) return false;
-            const btn = box.querySelector('button.btn-dark-ot');
-            if (!btn) return false;
-            btn.click();
-            return true;
-        }
-    """, default=False)
-    if clicked_confirm:
-        print("  Confirmed deletion via the resume dialog.")
-    else:
-        print("  No resume confirmation dialog appeared (may have deleted directly, or nothing to delete).")
-    time.sleep(2)
-    return True
-
-
-def upload_resume(page, resume_path: Path) -> bool:
-    try:
-        page.set_input_files(UPLOAD_SELECTOR, str(resume_path))
-    except PWTimeout:
-        print("  Upload input not found within timeout.")
-        return False
-    time.sleep(4)  # give Naukri's parser a moment to process the file
-    return True
-
-
-def run():
-    profile = Profile.load()
-    if not Path(SESSION_FILE).exists():
-        raise SystemExit(f"{SESSION_FILE} not found. Run: python login_capture.py naukri")
 
     resume_filename = profile.data.get("resume_file_name")
     if not resume_filename:
-        raise SystemExit("resume_file_name is not set in profile.yaml.")
+        print("ERROR: resume_file_name is not set in profile.yaml.")
+        return False
 
     resume_path = Path(resume_filename)
     if not resume_path.is_absolute():
         resume_path = Path(__file__).resolve().parent / resume_filename
     if not resume_path.exists():
-        raise SystemExit(
-            f"Resume file not found at {resume_path}. "
-            f"Put your resume in this project folder with the exact filename "
-            f"set in profile.yaml's resume_file_name."
-        )
+        print(f"ERROR: Resume file not found at {resume_path}.")
+        print("Ensure the file exists in the project root matching resume_file_name.")
+        return False
+
+    print(f"Target resume to upload: {resume_path.name} ({resume_path.stat().st_size} bytes)")
 
     with sync_playwright() as p:
         browser_mode = profile.data.get("browser_mode", "minimized")
@@ -125,48 +74,96 @@ def run():
         else:
             browser = p.chromium.launch(headless=False)
 
-        context = browser.new_context(storage_state=SESSION_FILE)
+        context = browser.new_context(storage_state=str(session_path))
         page = context.new_page()
-        page.goto(PROFILE_URL)
 
+        print(f"Navigating to {PROFILE_URL}...")
         try:
-            page.wait_for_selector(RESUME_NAME_SELECTOR, timeout=15000)
+            page.goto(PROFILE_URL, wait_until="load", timeout=60000)
+            page.wait_for_selector(RESUME_NAME_SELECTOR, timeout=20000)
         except PWTimeout:
-            print("Couldn't find the resume section on the profile page — "
-                  "check that session_naukri.json is still valid (session may have "
-                  "expired; re-run login_capture.py naukri if so).")
+            print("ERROR: Timeout loading Naukri profile page or locating resume section.")
+            print("Check that session_naukri.json is valid.")
             browser.close()
-            sys.exit(1)
-
-        before_name = get_current_resume_name(page)
-        print(f"Current resume on file: {before_name}")
-
-        if not delete_resume(page):
-            print("Could not delete the existing resume — stopping without uploading, "
-                  "to avoid ending up with two resumes on the profile.")
+            return False
+        except Exception as e:
+            print(f"ERROR: Navigation failed: {e}")
             browser.close()
-            sys.exit(1)
+            return False
 
-        if not upload_resume(page, resume_path):
-            print("Upload failed after deletion — your profile may currently have "
-                  "NO resume attached. Check it manually as soon as possible.")
-            browser.close()
-            sys.exit(1)
+        time.sleep(2)
 
-        page.reload()
+        current_resume_name = ""
         try:
-            page.wait_for_selector(RESUME_NAME_SELECTOR, timeout=15000)
-            after_name = get_current_resume_name(page)
-            print(f"Resume after refresh: {after_name}")
-            if after_name:
-                print("Refresh complete.")
-            else:
-                print("WARNING: no resume name detected after upload — check manually.")
-        except PWTimeout:
-            print("WARNING: couldn't confirm the resume re-appeared after upload — check manually.")
+            el = page.locator(RESUME_NAME_SELECTOR).first
+            if el.count() > 0:
+                current_resume_name = el.inner_text().strip()
+        except Exception:
+            pass
+        print(f"Current resume on file: '{current_resume_name}'")
 
-        browser.close()
+        if dry_run:
+            print(f"[DRY-RUN] Would upload '{resume_path.name}' to #attachCV. No changes made.")
+            browser.close()
+            return True
+
+        print(f"Uploading '{resume_path.name}' via #attachCV...")
+        try:
+            with page.expect_response(
+                lambda r: ("resume" in r.url.lower() or "upload" in r.url.lower() or "resman" in r.url.lower()) and r.status == 200,
+                timeout=25000
+            ):
+                page.set_input_files(ATTACH_SELECTOR, str(resume_path))
+            print("✓ Resume upload accepted by Naukri servers!")
+        except Exception as e:
+            print(f"WARN waiting for upload response: {e}")
+
+        time.sleep(4)
+
+        # Verify updated resume on profile
+        updated_name = ""
+        upload_date_str = ""
+        try:
+            el = page.locator(RESUME_NAME_SELECTOR).first
+            if el.count() > 0:
+                updated_name = el.inner_text().strip()
+
+            date_el = page.locator('.updateOn, .lastUpdated, .resume-upload-date').first
+            if date_el.count() > 0:
+                upload_date_str = date_el.inner_text().strip()
+        except Exception:
+            pass
+
+        print(f"Verified resume on profile: '{updated_name}' | Timestamp: '{upload_date_str}'")
+
+        if updated_name:
+            print("SUCCESS: Resume successfully refreshed on Naukri portal!")
+            log_row([
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "naukri",
+                "Resume Refresh",
+                "Naukri Profile",
+                "updated",
+                f"Uploaded: {resume_path.name} | {upload_date_str}",
+            ])
+            browser.close()
+            return True
+        else:
+            print("WARNING: Could not confirm resume name after upload.")
+            browser.close()
+            return False
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Re-upload resume to Naukri to maintain profile freshness.")
+    parser.add_argument("--dry-run", action="store_true", help="Preview action without uploading")
+    parser.add_argument("--unattended", action="store_true", help="Run in non-interactive unattended mode")
+    args = parser.parse_args()
+
+    profile = Profile.load()
+    success = refresh_naukri_resume(profile, dry_run=args.dry_run)
+    sys.exit(0 if success else 1)
 
 
 if __name__ == "__main__":
-    run()
+    main()

@@ -45,7 +45,7 @@ done
 
 {
     echo "========================================"
-    echo "Naukri headline update started: $(date)"
+    echo "Naukri daily refresh started: $(date)"
     echo "========================================"
 
     cd "$PROJECT_DIR" || {
@@ -58,14 +58,23 @@ done
         exit 1
     fi
 
+    # Step 1: Rotate Profile Headline (sets "Updated: Today")
+    echo "[1/2] Updating Naukri profile headline..."
     "$PYTHON" "$PROJECT_DIR/naukri_update_headline.py" --unattended
     HEADLINE_EXIT=$?
 
+    # Step 2: Re-upload Resume (sets "Resume uploaded: Today" & 100% freshness)
+    echo "[2/2] Re-uploading resume..."
+    "$PYTHON" "$PROJECT_DIR/naukri_refresh_resume.py" --unattended
+    RESUME_EXIT=$?
+
     echo "========================================"
-    echo "Headline update finished with exit code: $HEADLINE_EXIT at $(date)"
+    echo "Daily refresh finished at $(date)"
+    echo "  Headline Exit Code: $HEADLINE_EXIT"
+    echo "  Resume Exit Code:   $RESUME_EXIT"
     echo "========================================"
 
-    if [[ $HEADLINE_EXIT -ne 0 ]]; then
+    if [[ $HEADLINE_EXIT -ne 0 || $RESUME_EXIT -ne 0 ]]; then
         exit 1
     fi
     exit 0
