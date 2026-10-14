@@ -137,3 +137,18 @@ max_pages_per_role: 5
 browser_mode: "minimized"
 
 resume_file_name: "Abhishek_Anand_Resume.docx" # must match the filename already uploaded to Naukri/LinkedIn, and sit in this same project folder
+
+# ==========================================================================
+# NAUKRI RESUME HEADLINE ROTATION
+# Updates your profile headline daily (Mon-Sun) to keep your profile marked
+# as "Updated: Today" on Naukri Recruiter search (Resdex). Max 250 characters.
+# ==========================================================================
+naukri_headline_pool:
+  - "React Developer | Frontend & Full Stack Engineer | React.js, Next.js, TypeScript, Tailwind | 3.5+ Years | Remote | Immediate Joiner"
+  - "Frontend Developer | React.js, Next.js, TypeScript | UI Engineer | Modern Web Apps | 3.5+ Years Exp | Immediate Joiner"
+  - "React.js Developer | Frontend Engineer | Redux, Next.js, Tailwind CSS | 3.5+ Years Exp | Immediate Joiner"
+  - "Full Stack JavaScript Developer | React, Node.js, TypeScript | 3.5+ Yrs Exp | Remote | Available Immediately"
+  - "Senior Frontend Engineer | React Developer | TypeScript, Next.js, Performance & UI | 3.5+ Years | Immediate Joiner"
+  - "React Developer | Frontend Engineer | Next.js, TypeScript, REST & GraphQL APIs | 3.5+ Yrs | Immediate Joiner"
+  - "Frontend Engineer | React.js, TypeScript, Next.js Developer | Scalable Web Apps | 3.5+ Years | Immediate Joiner"
+

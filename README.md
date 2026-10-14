@@ -9,6 +9,7 @@ Features:
 - **Google Sheets Tracker (`google_sheets_logger.py`)**: Real-time sync for applied jobs, unapplied external links, and recruiter obstacles (`PENDING_MANUAL_DM`) with direct post URLs and resume paths.
 - **Human-Presentable PDF Resume Pipeline**: Automatically converts tailored resumes into single-page, universally readable `.pdf` files. Delivered to recruiters with clean, human names (e.g. `Abhishek_Anand_React_Developer.pdf`) with zero AI or bot tags.
 - **macOS Morning Scheduler (`launchd`)**: Runs unattended applications automatically Monday through Friday at 09:00 AM IST with a daily limit of 10 applications.
+- **Daily Naukri Headline Updater (`naukri_update_headline.py`)**: Rotates and updates your Resume Headline every day (Monday to Sunday) at 09:30 AM IST, ensuring your profile is always marked as "Updated Today" for recruiter search algorithms (Resdex).
 
 ## Read this before you use it
 
