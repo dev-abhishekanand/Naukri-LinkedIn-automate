@@ -152,3 +152,121 @@ naukri_headline_pool:
   - "React Developer | Frontend Engineer | Next.js, TypeScript, REST & GraphQL APIs | 3.5+ Yrs | Immediate Joiner"
   - "Frontend Engineer | React.js, TypeScript, Next.js Developer | Scalable Web Apps | 3.5+ Years | Immediate Joiner"
 
+# ==========================================================================
+# NAUKRI KEY SKILLS (Up to 30 tags)
+# Maximize Resdex keyword matching by including common spelling variations
+# that recruiters use in search queries (e.g. React.js, ReactJS, React JS, Next.js).
+# ==========================================================================
+naukri_key_skills:
+  - "React.js"
+  - "ReactJS"
+  - "Nextjs"
+  - "JavaScript"
+  - "TypeScript"
+  - "Redux"
+  - "Context API"
+  - "HTML"
+  - "Tailwind CSS"
+  - "Material UI"
+  - "Node.js"
+  - "Express"
+  - "REST API"
+  - "GraphQL"
+  - "Jwt"
+  - "webSocket"
+  - "MongoDB"
+  - "SQL"
+  - "Serverless"
+  - "Micro Frontend"
+  - "Github"
+  - "Git"
+  - "Jest"
+  - "Hooks"
+  - "Babel"
+  - "Eslint"
+  - "Webpack"
+  - "Axios"
+  - "Npm"
+
+# ==========================================================================
+# NAUKRI IT SKILLS MATRIX
+# Structured technical skills used in Resdex "IT Search" filters.
+# Every skill has explicit Experience (>= 2 Years) and Last Used (2026/2025)
+# to satisfy recruiter recency and seniority filters.
+# ==========================================================================
+naukri_it_skills:
+  - skill: "React.js"
+    version: "18.x"
+    last_used: "2026"
+    exp_years: 3
+    exp_months: 8
+
+  - skill: "JavaScript (ES6+)"
+    version: "ES6+"
+    last_used: "2026"
+    exp_years: 3
+    exp_months: 8
+
+  - skill: "TypeScript"
+    version: "5.x"
+    last_used: "2026"
+    exp_years: 3
+    exp_months: 0
+
+  - skill: "Next.js"
+    version: "14.x"
+    last_used: "2026"
+    exp_years: 2
+    exp_months: 6
+
+  - skill: "Redux"
+    version: "Redux Toolkit"
+    last_used: "2026"
+    exp_years: 3
+    exp_months: 0
+
+  - skill: "Tailwind CSS"
+    version: "3.x"
+    last_used: "2026"
+    exp_years: 3
+    exp_months: 0
+
+  - skill: "HTML5 & CSS3"
+    version: "HTML5"
+    last_used: "2026"
+    exp_years: 3
+    exp_months: 8
+
+  - skill: "REST APIs & GraphQL"
+    version: ""
+    last_used: "2026"
+    exp_years: 3
+    exp_months: 0
+
+  - skill: "Node.js"
+    version: "18.x"
+    last_used: "2026"
+    exp_years: 2
+    exp_months: 0
+
+  - skill: "Material UI"
+    version: "5.x"
+    last_used: "2025"
+    exp_years: 2
+    exp_months: 0
+
+  - skill: "Git"
+    version: ""
+    last_used: "2026"
+    exp_years: 3
+    exp_months: 8
+
+# ==========================================================================
+# NAUKRI ACCOMPLISHMENTS - WORK SAMPLE
+# ==========================================================================
+naukri_work_sample:
+  title: "GitHub - Frontend & Full Stack Engineering Projects"
+  url: "https://github.com/dev-abhishekanand"
+  description: "Frontend and Full Stack engineering repositories built with React.js, Next.js, TypeScript, and modern tooling."
+
+

@@ -10,6 +10,7 @@ Features:
 - **Human-Presentable PDF Resume Pipeline**: Automatically converts tailored resumes into single-page, universally readable `.pdf` files. Delivered to recruiters with clean, human names (e.g. `Abhishek_Anand_React_Developer.pdf`) with zero AI or bot tags.
 - **macOS Morning Scheduler (`launchd`)**: Runs unattended applications automatically Monday through Friday at 09:00 AM IST with a daily limit of 10 applications.
 - **Daily Naukri Headline Updater (`naukri_update_headline.py`)**: Rotates and updates your Resume Headline every day (Monday to Sunday) at 09:30 AM IST, ensuring your profile is always marked as "Updated Today" for recruiter search algorithms (Resdex).
+- **Naukri Resdex Profile Optimizer & Synchronizer (`naukri_sync_profile.py`)**: Configuration-driven profile synchronizer that keeps your live Naukri profile (Current CTC, Preferred CTC, 29+ Key Skills tags, structured IT Skills matrix with versions and 2026 recency, and GitHub Work Sample) synchronized with `profile.yaml`, maximizing recruiter search appearances.
 
 ## Read this before you use it
 
@@ -181,7 +182,37 @@ Scrapes real interview experiences and technical questions shared on LinkedIn, p
 .venv/bin/python linkedin_interview_scraper.py --dry-run
 ```
 
-### 4. Resume refresh (optional)
+### 4. Naukri Profile Resdex Optimization & Sync (`naukri_sync_profile.py`)
+
+Recruiter searches on Naukri (Resdex) prioritize profiles with complete salary information (to avoid ₹0 CTC filter disqualification), recency (IT Skills "Last Used: 2026"), high keyword coverage (up to 30 Key Skills), and project links. `naukri_sync_profile.py` automatically synchronizes these sections on your live portal directly from `profile.yaml`.
+
+```bash
+# Dry run mode: inspect live portal against profile.yaml without making changes
+.venv/bin/python naukri_sync_profile.py --dry-run
+
+# Full live sync: update Basic Details CTC, Preferred CTC, Key Skills, IT Skills, and GitHub Work Sample
+.venv/bin/python naukri_sync_profile.py
+
+# Sync a specific section only:
+.venv/bin/python naukri_sync_profile.py --section salary         # Current CTC & Preferred CTC
+.venv/bin/python naukri_sync_profile.py --section key_skills     # Up to 30 prioritized tags
+.venv/bin/python naukri_sync_profile.py --section it_skills      # Structured IT Skills table
+.venv/bin/python naukri_sync_profile.py --section work_sample    # GitHub Accomplishment link
+```
+
+### 5. Daily Naukri Headline Rotation (`naukri_update_headline.py`)
+
+Rotates your headline every morning across candidate variants in `naukri_headline_pool` (defined in `profile.yaml`), ensuring your profile is continuously stamped as "Updated: Today" on recruiter searches.
+
+```bash
+# Preview next headline rotation (dry run):
+.venv/bin/python naukri_update_headline.py --dry-run
+
+# Rotate and update live headline:
+.venv/bin/python naukri_update_headline.py
+```
+
+### 6. Resume refresh (optional)
 
 ```bash
 python naukri_refresh_resume.py
@@ -407,6 +438,8 @@ It does not remove application history or project data.
 
 ```text
 naukri_apply.py              Main Naukri search + apply loop (supports --unattended)
+naukri_sync_profile.py       Configuration-driven Naukri profile synchronizer (Resdex optimizer)
+naukri_update_headline.py    Daily Naukri headline rotation updater (Updated Today stamp)
 linkedin_apply.py            LinkedIn Easy Apply bot (supports --unattended)
 linkedin_posts_outreach.py   LinkedIn hiring posts scraper, resume tailor & cold emailer
 linkedin_interview_scraper.py Frontend & React interview experiences scraper
@@ -419,15 +452,18 @@ profile.example.yaml         Profile facts & preferences template -> profile.yam
 .env.example                 Secrets template -> .env
 
 scripts/
-  run_naukri_scheduled.sh    Master scheduler script (runs Naukri + LinkedIn sequentially)
+  run_naukri_scheduled.sh    Master scheduler script (runs Naukri + LinkedIn sequentially at 09:00 AM)
   install_naukri_scheduler.sh
   pause_naukri_scheduler.sh
   resume_naukri_scheduler.sh
   naukri_scheduler_status.sh
   uninstall_naukri_scheduler.sh
+  run_headline_scheduled.sh  Daily headline updater scheduler script (runs at 09:30 AM Mon-Sun)
+  install_headline_scheduler.sh
 
 launchd/
-  com.naukri.linkedin-ai.naukri.plist  macOS LaunchAgent (09:00 AM Mon-Fri)
+  com.naukri.linkedin-ai.naukri.plist    macOS LaunchAgent for morning job applications (09:00 AM Mon-Fri)
+  com.naukri.linkedin-ai.headline.plist  macOS LaunchAgent for daily headline rotation (09:30 AM Mon-Sun)
 
 common/
   profile.py                 Loads and validates profile.yaml & answer libraries
