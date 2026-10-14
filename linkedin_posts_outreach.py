@@ -156,10 +156,11 @@ def infer_company_name(text: str, headline: str, email: str = "") -> str:
 
 
 def scrape_posts(page, role: str) -> list[dict]:
-    """Navigates to LinkedIn content search for a role and extracts hiring posts."""
-    query = f"hiring {role}"
-    url = f"https://www.linkedin.com/search/results/content/?keywords={urllib.parse.quote(query)}"
-    print(f"\n🔍 Searching LinkedIn Posts: '{query}'")
+    """Navigates to LinkedIn content search for a role and extracts latest hiring posts."""
+    # High-converting boolean syntax: targeted role + hiring/requirement keywords
+    query = f'"{role}" AND ("hiring" OR "requirement")'
+    url = f"https://www.linkedin.com/search/results/content/?keywords={urllib.parse.quote(query)}&sortBy=%22date_posted%22"
+    print(f"\n🔍 Searching LinkedIn Posts (Sorted by Latest): '{query}'")
     page.goto(url, wait_until="commit", timeout=25000)
     time.sleep(5)
 
