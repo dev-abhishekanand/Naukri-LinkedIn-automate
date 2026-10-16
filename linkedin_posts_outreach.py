@@ -21,7 +21,7 @@ from playwright.sync_api import sync_playwright
 
 from common.ats_pipeline import prepare_tailored_resume
 from common.cold_email_drafter import draft_cold_email
-from common.email_sender import send_email
+from common.email_sender import send_email, preprocess_text_for_emails, clean_email_address
 from common.pdf_converter import convert_docx_to_pdf
 from common.profile import Profile
 from google_sheets_logger import append_external_job, external_job_url_exists
@@ -84,7 +84,7 @@ def log_outreach(row: dict):
             "title": row.get("role", ""),
             "company": row.get("company") or row.get("author", "LinkedIn Poster"),
             "location": row.get("location", "Remote/India"),
-            "exp": "3.6 Yrs",
+            "exp": "3.5+ Yrs",
             "href": post_url,
             "status": sheet_status,
             "notes": row.get("notes", f"HR Email: {row.get('recipient_email', 'N/A')} | Phone: {row.get('phone', 'N/A')}"),
@@ -96,20 +96,18 @@ def log_outreach(row: dict):
 
 def extract_emails_from_text(text: str) -> list[str]:
     """Extracts valid email addresses from text, filtering platform and example addresses."""
-    # Match standard email pattern
-    raw_emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
+    if not text:
+        return []
+    # Preprocess text to separate glued words after .com, .in, etc.
+    preprocessed = preprocess_text_for_emails(text)
+    # Match candidate email pattern
+    raw_emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', preprocessed)
     valid_emails = []
     seen = set()
 
     for e in raw_emails:
-        clean = e.strip(".,;:()[]\"'<>").lower()
+        clean = clean_email_address(e)
         if not clean or clean in seen:
-            continue
-        domain = clean.split("@")[-1]
-        if domain in IGNORE_EMAIL_DOMAINS or any(domain.endswith(f".{d}") for d in IGNORE_EMAIL_DOMAINS):
-            continue
-        # Ensure valid domain format
-        if "." not in domain or len(domain.split(".")[-1]) < 2:
             continue
         seen.add(clean)
         valid_emails.append(clean)

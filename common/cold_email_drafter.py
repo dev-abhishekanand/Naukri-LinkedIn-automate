@@ -13,7 +13,7 @@ You are an expert tech recruiter and cold outreach copywriter writing a high-con
 --- APPLICANT PROFILE ---
 Name: Abhishek Anand
 Role: Frontend Engineer / React Developer
-Experience: 3.6+ years professional experience
+Experience: 3.5+ years professional experience
 Core Stack: React.js, Next.js, TypeScript, JavaScript, Redux, TanStack Query, Tailwind CSS, REST APIs, GraphQL
 Key Achievements:
 - Scaled production web apps; reduced redundant API calls by 60% using TanStack Query.
@@ -31,7 +31,7 @@ Post Content:
 {post_text}
 
 --- COLD EMAIL GUIDELINES ---
-1. Subject line must be clean and professional: e.g. "Application: {role} - Abhishek Anand (3.6 Yrs Exp | Immediate Joiner)"
+1. Subject line must be clean and professional: e.g. "Application: {role} - Abhishek Anand (3.5+ Yrs Exp | Immediate Joiner)"
 2. Length: Under 130 words. Extremely punchy, skimmable, no corporate fluff, no buzzwords like "delighted" or "esteemed".
 3. Greeting: Professional (e.g. "Hi {author_first_name}," or "Hi {company} Hiring Team,").
 4. Hook: Mention you came across their recent post on LinkedIn hiring for the {role} role.
@@ -100,11 +100,11 @@ def draft_cold_email(
         print(f"  (Groq drafting failed — {e}. Using deterministic template.)")
 
     # Fallback deterministic template
-    subject = f"Application: {role} - Abhishek Anand (3.6 Yrs Exp | Immediate Joiner)"
+    subject = f"Application: {role} - Abhishek Anand (3.5+ Yrs Exp | Immediate Joiner)"
     body = (
         f"Hi {author_first},\n\n"
         f"I came across your recent LinkedIn post regarding the {role} position and wanted to reach out directly.\n\n"
-        f"I am a Frontend Engineer with 3.6+ years of production experience specializing in React.js, Next.js, and TypeScript. "
+        f"I am a Frontend Engineer with 3.5+ years of production experience specializing in React.js, Next.js, and TypeScript. "
         f"In my previous projects, I built real-time telemetry dashboards, reduced redundant API calls by 60% with TanStack Query, "
         f"and improved Core Web Vitals to 'Good' for 10k+ monthly users.\n\n"
         f"I am an immediate joiner (0 days notice period) and have attached my tailored resume for your review.\n\n"
