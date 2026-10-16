@@ -13,14 +13,11 @@ target_roles:
   - "Frontend Engineer"
   - "React + TypeScript Developer"
   - "Next.js Developer"
-  - "Full Stack JavaScript Developer"
+  - "UI Developer"
 
 # Controls how strictly a job's title must match the role you searched for.
-# Naukri's own search is loose (e.g. "Data Engineer" can surface completely
-# unrelated titles), so this filter re-checks the title itself. A card is
-# kept only if its title contains at least one of these words. If a role
-# isn't listed here, the script falls back to using the role's own words
-# (minus generic terms like "engineer"/"developer").
+# Naukri's own search is loose, so this filter re-checks the title itself.
+# A card is kept only if its title contains at least one of these words.
 role_required_keywords:
   "React Developer":
     [
@@ -31,14 +28,13 @@ role_required_keywords:
       "JavaScript Developer (React.js)",
       "React Js Frontend Developer",
       "Frontend Developer",
-      "React Frrontend Developer",
+      "React Frontend Developer",
     ]
-  "Frontend Developer": ["frontend developer", "front end developer"]
-  "Frontend Engineer": ["frontend engineer", "front end engineer"]
+  "Frontend Developer": ["frontend developer", "front end developer", "senior frontend developer", "sr. frontend developer"]
+  "Frontend Engineer": ["frontend engineer", "front end engineer", "senior frontend engineer", "sr. frontend engineer"]
   "React + TypeScript Developer": ["react", "typescript"]
   "Next.js Developer": ["next.js", "nextjs"]
-  "Full Stack JavaScript Developer":
-    ["full stack", "fullstack", "MERN", "MERN fullstack Developer"]
+  "UI Developer": ["ui developer", "ui engineer", "user interface developer", "react ui"]
 
 first_name: "Abhishek"
 last_name: "Anand"
@@ -176,33 +172,29 @@ naukri_key_skills:
   - "React.js"
   - "ReactJS"
   - "Nextjs"
-  - "JavaScript"
-  - "TypeScript"
+  - "Javascript"
+  - "Typescript"
+  - "Frontend Development"
+  - "UI Development"
   - "Redux"
-  - "Redux Js"
+  - "Redux State Management"
+  - "State Management"
   - "Context API"
-  - "Hooks"
-  - "HTML"
-  - "Css/Css3"
   - "Tailwind CSS"
   - "Material UI"
-  - "Sass"
-  - "Node.js"
-  - "Express"
   - "REST API"
   - "GraphQL"
   - "webSocket"
+  - "HTML"
+  - "CSS3"
+  - "Node.js"
+  - "Express"
   - "MongoDB"
   - "Micro Frontend"
   - "Git"
   - "Jest"
-  - "Mocha"
-  - "Babel"
-  - "Eslint"
-  - "Webpack"
-  - "Axios"
-  - "Npm"
-  - "YARN"
+
+
 
 # ==========================================================================
 # NAUKRI IT SKILLS MATRIX

@@ -156,38 +156,65 @@ def sync_key_skills(page, config, dry_run=False):
 
     chips = page.locator('.chipsContainer .chip .tagTxt').all_inner_texts()
     chips_normalized = {c.strip().lower(): c.strip() for c in chips}
+    target_normalized = {s.strip().lower() for s in target_skills}
     log(f"Portal currently has {len(chips)} key skills: {', '.join(chips)}")
+
+    # 1. Detect obsolete chips to remove
+    obsolete_to_remove = []
+    for c in chips:
+        if c.strip().lower() not in target_normalized:
+            obsolete_to_remove.append(c.strip())
 
     missing = []
     for s in target_skills:
         if s.strip().lower() not in chips_normalized:
             missing.append(s.strip())
 
-    if not missing:
-        log("✓ All configured key skills are already present.")
+    if not missing and not obsolete_to_remove:
+        log("✓ All configured key skills are already present and up to date.")
         close_modal(page)
         return
 
-    log(f"Identified {len(missing)} missing key skills to add: {', '.join(missing)}")
+    if obsolete_to_remove:
+        log(f"Identified {len(obsolete_to_remove)} obsolete key skills to remove: {', '.join(obsolete_to_remove)}")
+    if missing:
+        log(f"Identified {len(missing)} missing key skills to add: {', '.join(missing)}")
 
     if dry_run:
-        log(f"[DRY-RUN] Would add {len(missing)} tags to Key Skills.")
+        log(f"[DRY-RUN] Would remove {len(obsolete_to_remove)} and add {len(missing)} tags to Key Skills.")
         close_modal(page)
         return
 
+    # Remove obsolete tags
+    removed_count = 0
+    for obs in obsolete_to_remove:
+        chip_loc = page.locator(f'.chipsContainer .chip:has-text("{obs}")').first
+        if chip_loc.count() > 0:
+            close_btn = chip_loc.locator('a.close, .close').first
+            if close_btn.count() > 0:
+                try:
+                    close_btn.click()
+                    time.sleep(0.5)
+                    removed_count += 1
+                    log(f"  - Removed obsolete tag: {obs}")
+                except Exception as e:
+                    log(f"  WARN removing tag '{obs}': {e}")
+
+    time.sleep(1)
+
+    # Re-evaluate remaining chips
+    remaining_chips = page.locator('.chipsContainer .chip .tagTxt').all_inner_texts()
+    current_total = len(remaining_chips)
     sugg_input = page.locator('#keySkillSugg')
     added_count = 0
-    current_total = len(chips)
 
     for skill in missing:
         if current_total >= 30:
             log("Reached maximum allowed Key Skills (30 tags). Stopping tag additions.")
-            break
-
-        # Check character limit
+        # Check Naukri's 250 character limit on chipsVal
         chips_val = page.locator('#chipsVal').get_attribute('value') or ''
-        if len(chips_val) + len(skill) + 1 > 248:
-            log(f"Reached 250 character limit for Key Skills ({len(chips_val)}/250 chars). Cannot add '{skill}'.")
+        if len(chips_val) + len(skill) + 1 > 250:
+            log(f"Reached Naukri 250-character limit for Key Skills ({len(chips_val)}/250 chars). Cannot add '{skill}'.")
             break
 
         # Check if the skill is available in suggested chips first
@@ -207,31 +234,49 @@ def sync_key_skills(page, config, dry_run=False):
         # Otherwise type into suggestion input
         try:
             sugg_input.click()
+            sugg_input.fill("")
+            time.sleep(0.2)
             sugg_input.press_sequentially(skill, delay=80)
-            time.sleep(0.8)
+            time.sleep(1.0)
 
             sug_items = page.locator('#sugLst_keySkillSugg li')
+            matched_li = None
             if sug_items.count() > 0:
-                sug_items.first.evaluate("el => el.click()")
-            else:
-                page.keyboard.press("Enter")
+                # 1. Exact match (case-insensitive)
+                for idx in range(sug_items.count()):
+                    item_text = sug_items.nth(idx).inner_text().strip()
+                    if item_text.lower() == skill.strip().lower():
+                        matched_li = sug_items.nth(idx)
+                        break
+                # 2. Substring match
+                if not matched_li:
+                    for idx in range(sug_items.count()):
+                        item_text = sug_items.nth(idx).inner_text().strip()
+                        if skill.strip().lower() in item_text.lower():
+                            matched_li = sug_items.nth(idx)
+                            break
 
-            time.sleep(0.8)
-            current_total += 1
-            added_count += 1
-            log(f"  + Added skill tag: {skill}")
+            if matched_li:
+                matched_li.evaluate("el => el.click()")
+                time.sleep(0.8)
+                current_total += 1
+                added_count += 1
+                log(f"  + Added skill tag: {skill}")
+            else:
+                log(f"  WARN: No dictionary match found for '{skill}'; skipping to avoid irrelevant tags.")
+                sugg_input.fill("")
         except Exception as e:
             log(f"  WARN adding skill tag '{skill}': {e}")
 
-    if added_count > 0:
+    if added_count > 0 or removed_count > 0:
         try:
             with page.expect_response(lambda r: "resman-aggregator-services" in r.url or "keySkill" in r.url or "profile" in r.url, timeout=10000):
                 page.locator('#saveKeySkills').click()
-            log(f"✓ Key Skills updated! Added {added_count} new tags.")
+            log(f"✓ Key Skills updated! Removed {removed_count} obsolete and added {added_count} new tags.")
         except Exception as e:
             log(f"WARN saving key skills: {e}")
     else:
-        log("No new key skills were added.")
+        log("No key skill changes to save.")
 
     time.sleep(2)
     close_modal(page)

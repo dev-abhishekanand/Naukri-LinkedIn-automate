@@ -374,7 +374,7 @@ def classify_job_quality(
         normalized_title,
     ))
     unrelated_primary_title = bool(re.search(
-        r"(?:\.net|dot net|c#|wordpress|shopify|magento|sugarcrm|suitecrm|generative ai|machine learning|data scientist|java developer|angular developer|php developer|ruby developer)",
+        r"(?:\.net|dot net|c#|wordpress|shopify|magento|sugarcrm|suitecrm|generative ai|machine learning|data scientist|data engineer|pyspark|databricks|etl|java developer|angular developer|php developer|ruby developer|python developer|backend engineer)",
         normalized_title,
     ))
     if unrelated_primary_title and not relevant_title:
@@ -1079,7 +1079,6 @@ def run(unattended: bool = False):
                             "HIGH_REACT_FRONTEND",
                             "HIGH_FULLSTACK_JAVASCRIPT",
                             "MEDIUM_REACT_SOFTWARE_ENGINEER",
-                            "MEDIUM_REACT_PYTHON",
                         }
 
                         if quality not in allowed_quality:
