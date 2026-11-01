@@ -43,6 +43,8 @@ interview_prep.csv
 # Resumes and PDF artifacts
 *.pdf
 Abhishek_Anand_Resume.pdf
+*.zip
+cloud_bundle.zip
 
 # Generated job-specific resumes
 generated/
