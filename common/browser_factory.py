@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Unified Browser Factory for Google Chrome Automation
 Launches official Google Chrome (/Applications/Google Chrome.app) using Playwright channel="chrome".
@@ -9,7 +10,7 @@ never conflict or trigger 'SingletonLock' reopening errors.
 import os
 import sys
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 CHROME_APP_PATH = Path("/Applications/Google Chrome.app")
 PROJECT_DIR = Path(__file__).resolve().parent.parent

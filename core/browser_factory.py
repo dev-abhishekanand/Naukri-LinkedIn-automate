@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Browser Factory with Playwright Stealth & Human-like Behavior
 Provides configured Chromium instances equipped with stealth scripts, realistic headers,

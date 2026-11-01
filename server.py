@@ -28,7 +28,9 @@ if str(PROJECT_DIR) not in sys.path:
 WEB_DIR = PROJECT_DIR / "web"
 LOG_DIR = PROJECT_DIR / "scheduler_logs"
 APPLICATIONS_LOG = PROJECT_DIR / "applications_log.csv"
-VENV_PYTHON = Path(sys.executable)
+VENV_PYTHON = PROJECT_DIR / ".venv" / "bin" / "python"
+if not VENV_PYTHON.exists():
+    VENV_PYTHON = Path(sys.executable)
 
 from scripts.automation_diagnostics import diagnose_daily_run, trigger_task_run
 from core.sheets_manager import get_sheets_manager
@@ -1163,7 +1165,9 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
             site = (body.get("site") or "instahyre").lower().strip()
             print(f"\n[Chrome Login API] Launching login capture for portal: '{site}'")
             env = os.environ.copy()
-            if "DISPLAY" not in env:
+            if sys.platform == "darwin":
+                env.pop("DISPLAY", None)
+            elif "DISPLAY" not in env:
                 env["DISPLAY"] = ":99"
             cmd = [str(VENV_PYTHON), "login_capture.py", site]
             try:
@@ -1171,7 +1175,7 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
                 self.send_json({
                     "success": True,
                     "portal": site,
-                    "message": f"Browser process launched for {site.upper()} (PID {proc.pid}). If on Cloud/Codespaces, view display stream on Port 6080 or use Instant Cookie Importer.",
+                    "message": f"Opened Google Chrome on your screen for {site.upper()} login (PID {proc.pid}). Complete your login; your session will be saved automatically.",
                     "pid": proc.pid
                 })
             except Exception as e:
@@ -1189,8 +1193,12 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
             default_domains = {
                 "indeed": ".indeed.com",
                 "naukri": ".naukri.com",
+                "naukri_secondary": ".naukri.com",
                 "linkedin": ".linkedin.com",
-                "instahyre": ".instahyre.com"
+                "instahyre": ".instahyre.com",
+                "cutshort": ".cutshort.io",
+                "wellfound": ".wellfound.com",
+                "hirist": ".hirist.tech"
             }
             def_domain = default_domains.get(portal, f".{portal}.com")
 
