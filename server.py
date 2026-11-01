@@ -1344,7 +1344,7 @@ def run_server(port: int = 8585):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Unified Job Automation Dashboard Server")
-    default_port = int(os.environ.get("PORT", 7860))
+    default_port = int(os.environ.get("PORT", 8585))
     parser.add_argument("--port", type=int, default=default_port, help=f"Port to listen on (default: {default_port})")
     args = parser.parse_args()
     run_server(args.port)
