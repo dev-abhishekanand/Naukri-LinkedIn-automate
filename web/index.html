@@ -214,10 +214,12 @@
       };
 
       const openRelogin = (site) => {
+        const cleanSite = (site || 'naukri').toLowerCase();
         setReloginModal({
           open: true,
-          site: site.toUpperCase(),
-          command: `./.venv/bin/python login_capture.py ${site}`
+          site: cleanSite.toUpperCase(),
+          portalKey: cleanSite,
+          command: `python3 login_capture.py ${cleanSite}`
         });
       };
 
@@ -489,9 +491,31 @@
               <div className="glass-card w-full max-w-lg rounded-2xl p-6 border border-brand-500/30 shadow-2xl space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-rose-400 font-semibold text-sm">
-                    <span>🔑</span> Re-login Required: {reloginModal.site}
+                    <span>🔑</span> Authenticate Portal:
+                    <select
+                      value={reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase()}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setReloginModal({
+                          open: true,
+                          site: val.toUpperCase(),
+                          portalKey: val,
+                          command: `python3 login_capture.py ${val}`
+                        });
+                      }}
+                      className="bg-slate-900 border border-white/20 text-white rounded-lg px-2 py-1 text-xs font-semibold focus:outline-none focus:border-brand-500 cursor-pointer"
+                    >
+                      <option value="instahyre">Instahyre</option>
+                      <option value="naukri">Naukri P1</option>
+                      <option value="naukri_secondary">Naukri P2</option>
+                      <option value="linkedin">LinkedIn</option>
+                      <option value="indeed">Indeed</option>
+                      <option value="cutshort">Cutshort</option>
+                      <option value="wellfound">Wellfound</option>
+                      <option value="hirist">Hirist</option>
+                    </select>
                   </div>
-                  <button onClick={() => setReloginModal({ open: false, site: '', command: '' })} className="text-slate-400 hover:text-white">✕</button>
+                  <button onClick={() => setReloginModal({ open: false, site: '', portalKey: '', command: '' })} className="text-slate-400 hover:text-white">✕</button>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
                   Active session is missing or expired. To re-authenticate with anti-bot cookies, open terminal and run:
@@ -506,7 +530,7 @@
                       const res = await fetch('/api/chrome/open-login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ site: reloginModal.site.toLowerCase() })
+                        body: JSON.stringify({ site: reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase() })
                       });
                       const data = await res.json();
                       if (data.success) {
@@ -546,7 +570,7 @@
                           const res = await fetch('/api/session/import', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ portal: reloginModal.site.toLowerCase(), data: val })
+                            body: JSON.stringify({ portal: reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase(), data: val })
                           });
                           const d = await res.json();
                           if (d.success) {

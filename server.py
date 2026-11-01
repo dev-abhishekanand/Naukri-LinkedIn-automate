@@ -1160,7 +1160,8 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
 
         # 11. Interactive Chrome Login Capture
         if url_path == "/api/chrome/open-login":
-            site = body.get("site", "naukri").lower()
+            site = (body.get("site") or "instahyre").lower().strip()
+            print(f"\n[Chrome Login API] Launching login capture for portal: '{site}'")
             env = os.environ.copy()
             if "DISPLAY" not in env:
                 env["DISPLAY"] = ":99"
@@ -1169,6 +1170,7 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
                 proc = subprocess.Popen(cmd, cwd=str(PROJECT_DIR), env=env)
                 self.send_json({
                     "success": True,
+                    "portal": site,
                     "message": f"Browser process launched for {site.upper()} (PID {proc.pid}). If on Cloud/Codespaces, view display stream on Port 6080 or use Instant Cookie Importer.",
                     "pid": proc.pid
                 })
