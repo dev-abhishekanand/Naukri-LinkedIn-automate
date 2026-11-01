@@ -1,3 +1,13 @@
+---
+title: Job Automation Hub
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 8585
+pinned: false
+---
+
 # Naukri & LinkedIn AI Job Automation Suite
 
 A production-ready personal automation suite that searches **Naukri.com** and **LinkedIn** for target roles, automatically applies, answers complex screening questionnaires using facts from your profile, tailors ATS-compliant PDF resumes, conducts automated cold outreach to hiring recruiters on LinkedIn posts, and tracks all applications and obstacles in a live Google Sheet.
