@@ -142,7 +142,11 @@ def launch_chrome_persistent_context(
     }
     if channel:
         launch_kwargs["channel"] = channel
-    if slow_mo:
-        launch_kwargs["slow_mo"] = slow_mo
+        try:
+            return p.chromium.launch_persistent_context(**launch_kwargs)
+        except Exception as e:
+            print(f"[Browser Factory] Notice: Chrome channel launch ({e}). Falling back to bundled Chromium...")
+            launch_kwargs.pop("channel", None)
+            return p.chromium.launch_persistent_context(**launch_kwargs)
 
     return p.chromium.launch_persistent_context(**launch_kwargs)

@@ -360,13 +360,15 @@
                   <div className="text-xl font-extrabold text-emerald-400 mt-0.5">
                     {metrics.today?.applied_total ?? 0} Applications
                   </div>
-                  <div className="text-[10px] text-slate-300 font-mono mt-1 grid grid-cols-3 gap-1">
+                  <div className="text-[10px] text-slate-300 font-mono mt-1 grid grid-cols-4 gap-1">
                     <span>Naukri: <strong>{((metrics.today?.by_portal?.naukri_primary || 0) + (metrics.today?.by_portal?.naukri_secondary || 0))}</strong></span>
                     <span>LinkedIn: <strong>{metrics.today?.by_portal?.linkedin || 0}</strong></span>
+                    <span>Indeed: <strong>{metrics.today?.by_portal?.indeed || 0}</strong></span>
                     <span>Instahyre: <strong>{metrics.today?.by_portal?.instahyre || 0}</strong></span>
                     <span>Cutshort: <strong>{metrics.today?.by_portal?.cutshort || 0}</strong></span>
                     <span>Wellfound: <strong>{metrics.today?.by_portal?.wellfound || 0}</strong></span>
-                    <span>ATS: <strong>{metrics.today?.by_portal?.universal_ats || 0}</strong></span>
+                    <span>Hirist: <strong>{metrics.today?.by_portal?.hirist || 0}</strong></span>
+                    <span>ATS Sheet: <strong>{metrics.today?.by_portal?.universal_ats || 0}</strong></span>
                   </div>
                 </div>
               </div>
@@ -399,10 +401,10 @@
                     <span className="text-[11px] font-semibold text-slate-300">📊 Sheet Queue</span>
                   </div>
                   <div className="text-lg font-extrabold text-amber-400 mt-0.5">
-                    {metrics.google_sheets?.pending ?? 196} Pending
+                    {metrics.google_sheets?.pending ?? 0} Pending
                   </div>
                   <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    {metrics.google_sheets?.total ?? 517} Total · {metrics.google_sheets?.applied ?? 401} Applied · {metrics.google_sheets?.review_required ?? 166} Review
+                    {metrics.google_sheets?.total ?? 0} Total · {metrics.google_sheets?.applied ?? 0} Applied · {metrics.google_sheets?.review_required ?? 0} Review
                   </div>
                 </div>
                 <button onClick={() => setActiveTab('sheets')} className="text-xs px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-mono">
@@ -440,7 +442,7 @@
               </button>
               <button onClick={() => setActiveTab('sheets')} className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition ${activeTab === 'sheets' ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
                 <span>📊</span> Tab 4: Google Sheet Batch Runner
-                <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[10px]">196 Pending</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[10px]">{metrics.google_sheets?.pending ?? 0} Pending</span>
               </button>
               <button onClick={() => setActiveTab('ledger')} className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition ${activeTab === 'ledger' ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
                 <span>📜</span> Tab 5: Verified Ledger (225 Submitted · Zero False Inflation)
@@ -511,9 +513,9 @@
                   <div className="flex items-center gap-2 text-rose-400 font-semibold text-sm">
                     <span>🔑</span> Authenticate Portal:
                     <select
-                      value={reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase()}
+                      value={reloginModal.portalKey || 'naukri'}
                       onChange={(e) => {
-                        const val = e.target.value;
+                        const val = e.target.value.toLowerCase().trim();
                         setReloginModal({
                           open: true,
                           site: val.toUpperCase(),
@@ -523,11 +525,11 @@
                       }}
                       className="bg-slate-900 border border-white/20 text-white rounded-lg px-2 py-1 text-xs font-semibold focus:outline-none focus:border-brand-500 cursor-pointer"
                     >
-                      <option value="instahyre">Instahyre</option>
                       <option value="naukri">Naukri P1</option>
                       <option value="naukri_secondary">Naukri P2</option>
                       <option value="linkedin">LinkedIn</option>
                       <option value="indeed">Indeed</option>
+                      <option value="instahyre">Instahyre</option>
                       <option value="cutshort">Cutshort</option>
                       <option value="wellfound">Wellfound</option>
                       <option value="hirist">Hirist</option>
@@ -536,7 +538,7 @@
                   <button onClick={() => setReloginModal({ open: false, site: '', portalKey: '', command: '' })} className="text-slate-400 hover:text-white">✕</button>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Active session is missing or expired. To re-authenticate with anti-bot cookies, open terminal and run:
+                  Active session is missing or expired. To re-authenticate with anti-bot cookies, click "Launch Chrome Window" below or run in terminal:
                 </p>
                 <div className="bg-slate-950 p-3.5 rounded-xl border border-white/10 font-mono text-xs text-brand-300 flex items-center justify-between">
                   <span className="select-all">{reloginModal.command}</span>
@@ -544,7 +546,7 @@
                 </div>
                 <div className="flex justify-between items-center pt-2">
                   <button onClick={async () => {
-                    const target = reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase();
+                    const target = reloginModal.portalKey || 'naukri';
                     if (confirm(`Remove old session for ${target.toUpperCase()} and start fresh?`)) {
                       const res = await fetch('/api/session/reset', {
                         method: 'POST',
@@ -561,7 +563,7 @@
 
                   <button onClick={async () => {
                     try {
-                      const target = reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase();
+                      const target = reloginModal.portalKey || 'naukri';
                       const res = await fetch('/api/chrome/open-login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -605,7 +607,7 @@
                           const res = await fetch('/api/session/import', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ portal: reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase(), data: val })
+                            body: JSON.stringify({ portal: reloginModal.portalKey || 'naukri', data: val })
                           });
                           const d = await res.json();
                           if (d.success) {
@@ -1147,11 +1149,20 @@
                   </tr>
                   <tr className="hover:bg-white/[0.02]">
                     <td className="px-3.5 py-2 font-bold text-white flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500"></span> Indeed Direct
+                    </td>
+                    <td className="px-3.5 py-2 text-blue-400 font-bold">{metrics.today?.by_portal?.indeed || 0}</td>
+                    <td className="px-3.5 py-2">Direct Intake &amp; Apply</td>
+                    <td className="px-3.5 py-2 text-slate-400">Target Intake Ready</td>
+                    <td className="px-3.5 py-2 text-blue-400">✓ Indeed Session Verified</td>
+                  </tr>
+                  <tr className="hover:bg-white/[0.02]">
+                    <td className="px-3.5 py-2 font-bold text-white flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-amber-400"></span> Google Sheet ('Apply Yourself' ATS)
                     </td>
                     <td className="px-3.5 py-2 text-amber-400 font-bold">{metrics.today?.by_portal?.universal_ats || 0}</td>
-                    <td className="px-3.5 py-2">206 Direct Applied</td>
-                    <td className="px-3.5 py-2 text-amber-400 font-bold">{metrics.google_sheets?.pending || 196} Pending in Sheet</td>
+                    <td className="px-3.5 py-2">{metrics.google_sheets?.applied || 0} Direct Applied</td>
+                    <td className="px-3.5 py-2 text-amber-400 font-bold">{metrics.google_sheets?.pending || 0} Pending in Sheet</td>
                     <td className="px-3.5 py-2 text-amber-400">✓ Workday / Greenhouse API</td>
                   </tr>
                   <tr className="hover:bg-white/[0.02]">
@@ -1159,32 +1170,32 @@
                       <span className="w-2 h-2 rounded-full bg-purple-400"></span> Instahyre
                     </td>
                     <td className="px-3.5 py-2 text-purple-400 font-bold">{metrics.today?.by_portal?.instahyre || 0}</td>
-                    <td className="px-3.5 py-2">17 Opportunities Applied</td>
-                    <td className="px-3.5 py-2 text-slate-400">0 Pending</td>
+                    <td className="px-3.5 py-2">Opportunities Intake</td>
+                    <td className="px-3.5 py-2 text-slate-400">Profile Sync Ready</td>
                     <td className="px-3.5 py-2 text-purple-400">✓ 1-Click Candidate Apply</td>
                   </tr>
                   <tr className="hover:bg-white/[0.02]">
                     <td className="px-3.5 py-2 font-bold text-white flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-rose-400"></span> Cutshort &amp; Wellfound
+                      <span className="w-2 h-2 rounded-full bg-rose-400"></span> Cutshort &amp; Hirist &amp; Wellfound
                     </td>
-                    <td className="px-3.5 py-2 text-slate-400">0 (Login Req)</td>
-                    <td className="px-3.5 py-2 text-slate-400">Ready for Login</td>
-                    <td className="px-3.5 py-2 text-slate-400">Auth Hook Configured</td>
-                    <td className="px-3.5 py-2 text-rose-400">⚠️ Login Required</td>
+                    <td className="px-3.5 py-2 text-rose-300 font-bold">{(metrics.today?.by_portal?.cutshort || 0) + (metrics.today?.by_portal?.hirist || 0) + (metrics.today?.by_portal?.wellfound || 0)}</td>
+                    <td className="px-3.5 py-2">Tech Portal Runners</td>
+                    <td className="px-3.5 py-2 text-slate-400">Ready for Login / Dispatch</td>
+                    <td className="px-3.5 py-2 text-slate-300">Auth Hooks Configured</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            {/* Triage Card: 196 Pending in Sheet Queue */}
+            {/* Triage Card: Live Pending in Sheet Queue */}
             <div className="bg-slate-900/90 p-4 rounded-xl border border-amber-500/30 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div>
                 <div className="font-bold text-amber-300 flex items-center gap-1.5">
-                  <span>📊</span> Sheet Queue Breakdown (196 Pending 'Apply Yourself' Jobs)
+                  <span>📊</span> Sheet Queue Breakdown ({metrics.google_sheets?.pending || 0} Pending 'Apply Yourself' Jobs)
                 </div>
                 <div className="text-slate-400 mt-1 font-mono text-[11px]">
-                  • <strong>112 Automated Career Portals:</strong> Greenhouse, Lever, Workday (Automated multi-step wizard ready)<br/>
-                  • <strong>84 Custom Company Forms:</strong> Require manual review (Captcha, OTP, or custom questionnaires)
+                  • <strong>Live Pending Queue:</strong> {metrics.google_sheets?.pending || 0} unapplied positions currently in 'Apply Yourself' tab.<br/>
+                  • <strong>Total Ingested:</strong> {metrics.google_sheets?.total || 0} total jobs tracked · {metrics.google_sheets?.applied || 0} successfully applied · {metrics.google_sheets?.review_required || 0} review required.
                 </div>
               </div>
               <button onClick={() => setActiveTab('sheets')} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition font-mono">
@@ -1226,7 +1237,7 @@
                     <div className="text-xs font-semibold text-white">Qualified &amp; Ingested to Sheet</div>
                     <div className="text-[11px] text-slate-400 font-mono">Target React.js / Frontend roles (3.5 Yrs)</div>
                   </div>
-                  <div className="text-lg font-bold text-emerald-400">517</div>
+                  <div className="text-lg font-bold text-emerald-400">{metrics.google_sheets?.total || 0}</div>
                 </div>
 
                 <div className="bg-slate-900/60 p-3 rounded-xl border border-amber-500/20 bg-amber-950/10 flex items-center justify-between">
@@ -1234,7 +1245,7 @@
                     <div className="text-xs font-semibold text-amber-300">Pending External Direct Apply</div>
                     <div className="text-[11px] text-amber-400/80 font-mono">Queued in 'Apply Yourself' tab</div>
                   </div>
-                  <div className="text-lg font-bold text-amber-400">196</div>
+                  <div className="text-lg font-bold text-amber-400">{metrics.google_sheets?.pending || 0}</div>
                 </div>
               </div>
             </div>
@@ -2759,6 +2770,21 @@ Or send your CV to hr@cielsatech.com with subject 'Application - Frontend Develo
       const [visible, setVisible] = useState(false);
       const [launchingBatch, setLaunchingBatch] = useState(false);
       const [statusOverrideModal, setStatusOverrideModal] = useState({ open: false, row: null, status: 'APPLIED', reason: '' });
+      const [batchOutcome, setBatchOutcome] = useState(null);
+
+      const fetchOutcome = async () => {
+        try {
+          const res = await fetch('/api/google-sheets/batch-outcome');
+          const d = await res.json();
+          if (d.success && d.outcome) {
+            setBatchOutcome(d.outcome);
+          }
+        } catch (e) {}
+      };
+
+      useEffect(() => {
+        fetchOutcome();
+      }, []);
 
       const handleBatchApply = async () => {
         setLaunchingBatch(true);
@@ -2771,6 +2797,7 @@ Or send your CV to hr@cielsatech.com with subject 'Application - Frontend Develo
           const d = await res.json();
           if (d.success) {
             alert(`🚀 Sheet Batch Apply launched! Processing up to ${limit} pending jobs. Watch the live console banner above.`);
+            setTimeout(fetchOutcome, 5000);
           } else {
             alert(d.error || "Could not launch batch run");
           }
@@ -2830,6 +2857,10 @@ Or send your CV to hr@cielsatech.com with subject 'Application - Frontend Develo
       if (loading) return <div className="text-xs text-slate-400 p-8 text-center">Syncing live records with Google Sheets 'Apply Yourself' tab...</div>;
 
       const jobs = sheetsData?.jobs || [];
+      const pendingCount = sheetsData?.stats?.pending || 0;
+      const totalCount = sheetsData?.stats?.total || 0;
+      const appliedCount = sheetsData?.stats?.applied || 0;
+      const reviewCount = (sheetsData?.stats?.review_required || 0) + (sheetsData?.stats?.failed || 0);
 
       return (
         <div className="space-y-6">
@@ -2846,9 +2877,9 @@ Or send your CV to hr@cielsatech.com with subject 'Application - Frontend Develo
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 font-mono font-semibold">
-                  196 Pending in Sheet
+                  {pendingCount} Pending in Sheet
                 </span>
-                <button onClick={reload} className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono transition">
+                <button onClick={() => { reload(); fetchOutcome(); }} className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono transition">
                   Refresh Sheet ⟳
                 </button>
               </div>
@@ -2904,26 +2935,81 @@ Or send your CV to hr@cielsatech.com with subject 'Application - Frontend Develo
             </div>
           </div>
 
+          {/* Dedicated Transparent Post-Batch Outcome Card */}
+          {batchOutcome && (
+            <div className={`p-5 rounded-2xl border ${
+              batchOutcome.unapplied_count > 0 
+                ? 'border-amber-500/40 bg-amber-950/20' 
+                : 'border-emerald-500/40 bg-emerald-950/20'
+            } space-y-3`}>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{batchOutcome.unapplied_count > 0 ? '⚠️' : '🎉'}</span>
+                  <div>
+                    <h4 className="font-bold text-sm text-white">
+                      {batchOutcome.unapplied_count > 0 
+                        ? `${batchOutcome.unapplied_count} jobs left for apply. Just go and apply yourself!` 
+                        : 'Batch Run 100% Complete — All processed jobs were automatically applied!'}
+                    </h4>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      Batch finished: {batchOutcome.timestamp} · Total attempted: {batchOutcome.total_processed} · Applied: {batchOutcome.applied_count} · Left: {batchOutcome.unapplied_count}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={fetchOutcome} className="text-xs text-slate-400 hover:text-white font-mono px-2 py-1 rounded bg-slate-800">
+                  Refresh Outcome ⟳
+                </button>
+              </div>
+
+              {batchOutcome.unapplied_jobs?.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="text-xs font-semibold text-amber-300">
+                    👉 Unapplied links from last batch run — click "Apply Yourself" to open directly:
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto custom-scrollbar">
+                    {batchOutcome.unapplied_jobs.map((job, idx) => (
+                      <div key={idx} className="bg-slate-900/90 border border-white/10 p-3 rounded-xl flex items-center justify-between gap-3 text-xs">
+                        <div className="truncate pr-2">
+                          <div className="font-bold text-white truncate">{job.title}</div>
+                          <div className="text-[11px] text-slate-400 truncate">{job.company} · Row #{job.row_index}</div>
+                          {job.reason && <div className="text-[10px] text-amber-400/90 font-mono truncate">{job.reason}</div>}
+                        </div>
+                        <a
+                          href={job.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs font-mono whitespace-nowrap shadow transition flex items-center gap-1"
+                        >
+                          <span>🔗</span> Apply Yourself
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Sheet KPI Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="glass-card p-4 rounded-2xl">
               <span className="text-[11px] font-medium text-slate-400">Total Rows in Sheet</span>
-              <div className="text-2xl font-bold text-white">{sheetsData?.stats?.total || 517}</div>
+              <div className="text-2xl font-bold text-white">{totalCount}</div>
               <span className="text-[11px] text-slate-400 font-mono">Column 1 to 10 mapped</span>
             </div>
             <div className="glass-card p-4 rounded-2xl border-amber-500/20 bg-amber-950/10">
               <span className="text-[11px] font-medium text-amber-400">Pending External Apply</span>
-              <div className="text-2xl font-bold text-amber-300">{sheetsData?.stats?.pending || 196}</div>
+              <div className="text-2xl font-bold text-amber-300">{pendingCount}</div>
               <span className="text-[11px] text-amber-400/80 font-mono">Status = 'PENDING'</span>
             </div>
             <div className="glass-card p-4 rounded-2xl border-emerald-500/20 bg-emerald-950/10">
               <span className="text-[11px] font-medium text-emerald-400">Successfully Applied</span>
-              <div className="text-2xl font-bold text-emerald-300">{sheetsData?.stats?.applied || 401}</div>
+              <div className="text-2xl font-bold text-emerald-300">{appliedCount}</div>
               <span className="text-[11px] text-emerald-400/80 font-mono">Column 10 = 'APPLIED'</span>
             </div>
             <div className="glass-card p-4 rounded-2xl">
               <span className="text-[11px] font-medium text-slate-400">Review Required / Failed</span>
-              <div className="text-2xl font-bold text-slate-300">{(sheetsData?.stats?.review_required || 166) + (sheetsData?.stats?.failed || 82)}</div>
+              <div className="text-2xl font-bold text-slate-300">{reviewCount}</div>
               <span className="text-[11px] text-slate-400 font-mono">Captcha or complex ATS</span>
             </div>
           </div>
@@ -3081,7 +3167,7 @@ Or send your CV to hr@cielsatech.com with subject 'Application - Frontend Develo
               </span>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              We eliminated the vague 21,788 count. In this verified ledger, we explicitly separate <strong>Submitted Applications (225 Verified Easy Apply / 572 Total Processed)</strong> from <strong>Pending Sheet Jobs (196)</strong>, <strong>Review Required (83)</strong>, and <strong>Filtered Search Cards (19,723)</strong> which were skipped during candidate matching due to senior YoE (&gt;6 yrs) or location filters.
+              We eliminated the vague 21,788 count. In this verified ledger, we explicitly separate <strong>Submitted Applications (225 Verified Easy Apply / {metrics.ledger?.total_processed_records || 572} Total Processed)</strong> from <strong>Pending Sheet Jobs ({metrics.google_sheets?.pending || 0})</strong>, <strong>Review Required ({metrics.google_sheets?.review_required || 0})</strong>, and <strong>Filtered Search Cards (19,723)</strong> which were skipped during candidate matching due to senior YoE (&gt;6 yrs) or location filters.
             </p>
           </div>
 
@@ -3100,12 +3186,12 @@ Or send your CV to hr@cielsatech.com with subject 'Application - Frontend Develo
             <button
               onClick={() => setFilterStatus('PENDING_ONLY')}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${filterStatus === 'PENDING_ONLY' ? 'bg-amber-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white border border-white/5'}`}>
-              ⏳ Pending Sheet Jobs (196)
+              ⏳ Pending Sheet Jobs ({metrics.google_sheets?.pending || 0})
             </button>
             <button
               onClick={() => setFilterStatus('REVIEW_ONLY')}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${filterStatus === 'REVIEW_ONLY' ? 'bg-cyan-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white border border-white/5'}`}>
-              ⚠️ Review Required (83)
+              ⚠️ Review Required ({metrics.google_sheets?.review_required || 0})
             </button>
             <button
               onClick={() => setFilterStatus('SKIPPED_ONLY')}

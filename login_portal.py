@@ -152,45 +152,69 @@ def run_login(portal_key: str):
                 cookies = context.cookies()
                 c_names = {c.get("name") for c in cookies}
 
+                # OAUTH FLOW PROTECTION:
+                # If user is currently on Google, Apple, LinkedIn OAuth, or identity provider, NEVER detect as logged in!
+                oauth_domains = ["accounts.google.com", "google.com", "appleid.apple.com", "auth0.com", "oauth", "signin.aws"]
+                if any(dom in curr_url for dom in oauth_domains):
+                    time.sleep(1)
+                    continue
+
                 if portal_key in ("naukri", "naukri_secondary"):
-                    if any(c in c_names for c in ["nauk_at", "nauk_user", "n_auth", "is_login"]) or "mnjuser" in curr_url or "homepage" in curr_url:
+                    is_naukri_domain = "naukri.com" in curr_url
+                    if is_naukri_domain and "login" not in curr_url and (any(c in c_names for c in ["nauk_at", "nauk_user", "n_auth", "is_login"]) or "mnjuser" in curr_url or "homepage" in curr_url):
                         print("  [✓] Verified Naukri authentication tokens!")
                         time.sleep(2)
                         break
 
                 elif portal_key == "linkedin":
-                    if "li_at" in c_names and ("feed" in curr_url or "jobs" in curr_url or "mynetwork" in curr_url):
+                    is_li_domain = "linkedin.com" in curr_url
+                    has_li_at = any(c.get("name") == "li_at" and len(c.get("value", "")) > 15 for c in cookies)
+                    is_logged_in = ("feed" in curr_url or "jobs" in curr_url or "mynetwork" in curr_url) and not any(x in curr_url for x in ["login", "checkpoint", "uas"])
+                    if is_li_domain and has_li_at and is_logged_in:
                         print("  [✓] Verified LinkedIn 'li_at' authentication token!")
                         time.sleep(2)
                         break
 
                 elif portal_key == "instahyre":
-                    if any(c in c_names for c in ["sessionid", "auth_token"]) or "candidate" in curr_url or "opportunities" in curr_url:
+                    is_insta_domain = "instahyre.com" in curr_url
+                    is_candidate_page = ("candidate/opportunities" in curr_url or "candidate/profile" in curr_url or "candidate/dashboard" in curr_url)
+                    has_insta_auth = any(c in c_names for c in ["sessionid", "auth_token"])
+                    if is_insta_domain and not any(x in curr_url for x in ["/login", "signin", "signup"]) and (is_candidate_page or (has_insta_auth and "candidate" in curr_url)):
                         print("  [✓] Verified Instahyre candidate dashboard!")
                         time.sleep(2)
                         break
 
                 elif portal_key == "cutshort":
-                    if "cutshort_authentication" in c_names or "dashboard" in curr_url or "profile" in curr_url or "jobs" in curr_url:
+                    is_cs_domain = "cutshort.io" in curr_url
+                    has_cs_auth = any(c.get("name") == "cutshort_authentication" and len(c.get("value", "")) > 15 for c in cookies)
+                    is_cs_page = ("dashboard" in curr_url or "profile" in curr_url or "inbox" in curr_url or "jobs" in curr_url)
+                    if is_cs_domain and "login" not in curr_url and (has_cs_auth or is_cs_page):
                         print("  [✓] Verified Cutshort authentication token!")
                         time.sleep(2)
                         break
 
                 elif portal_key == "wellfound":
-                    if any(c in c_names for c in ["remember_user_token", "auth_token", "ajs_user_id"]) or "jobs" in curr_url or "profile" in curr_url:
+                    is_wf_domain = "wellfound.com" in curr_url
+                    has_wf_auth = any(c in c_names for c in ["remember_user_token", "auth_token"])
+                    is_wf_page = ("jobs" in curr_url or "profile" in curr_url or "overview" in curr_url or "candidates" in curr_url)
+                    if is_wf_domain and "login" not in curr_url and (has_wf_auth or is_wf_page):
                         print("  [✓] Verified Wellfound authentication token!")
                         time.sleep(2)
                         break
 
                 elif portal_key == "hirist":
-                    if any(c in c_names for c in ["hirist_session", "user_id"]) or "candidate" in curr_url or "dashboard" in curr_url:
+                    is_hirist_domain = ("hirist.tech" in curr_url or "hirist.com" in curr_url)
+                    has_hirist_auth = any(c in c_names for c in ["hirist_session", "candidate_id", "user_id"])
+                    is_hirist_page = ("candidate/dashboard" in curr_url or "candidate/jobs" in curr_url or "candidate/profile" in curr_url or "candidate/my-applications" in curr_url)
+                    if is_hirist_domain and "candidate/login" not in curr_url and not any(x in curr_url for x in ["/login", "signin", "signup"]) and (is_hirist_page or has_hirist_auth):
                         print("  [✓] Verified Hirist candidate session!")
                         time.sleep(2)
                         break
 
                 elif portal_key == "indeed":
+                    is_indeed_domain = "indeed.com" in curr_url
                     has_auth = any(c in c_names for c in ["PPID", "SHARED_SESSION_TOKEN", "LOGGED_IN", "SOCK"])
-                    if has_auth and "login" not in curr_url and "__cf_chl" not in curr_url:
+                    if is_indeed_domain and has_auth and "login" not in curr_url and "__cf_chl" not in curr_url:
                         print("  [✓] Verified Indeed candidate session!")
                         time.sleep(2)
                         break

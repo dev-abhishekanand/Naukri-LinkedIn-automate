@@ -116,6 +116,7 @@ def _compute_all_metrics():
         "naukri_primary": 0,
         "naukri_secondary": 0,
         "linkedin": 0,
+        "indeed": 0,
         "instahyre": 0,
         "cutshort": 0,
         "wellfound": 0,
@@ -134,8 +135,12 @@ def _compute_all_metrics():
                     pl = (r.get("platform") or "unknown").lower()
                     if ts.startswith(today_str) and st in ("APPLIED", "EXTERNAL_APPLIED"):
                         today_applied += 1
-                        if "naukri" in pl:
+                        if "naukri (secondary)" in pl:
+                            today_by_portal["naukri_secondary"] += 1
+                        elif "naukri" in pl:
                             today_by_portal["naukri_primary"] += 1
+                        elif "indeed" in pl:
+                            today_by_portal["indeed"] += 1
                         elif "instahyre" in pl:
                             today_by_portal["instahyre"] += 1
                         elif "cutshort" in pl:
@@ -146,6 +151,8 @@ def _compute_all_metrics():
                             today_by_portal["hirist"] += 1
                         elif "ats" in pl or "direct" in pl:
                             today_by_portal["universal_ats"] += 1
+                        elif "linkedin" in pl:
+                            today_by_portal["linkedin"] += 1
                         else:
                             today_by_portal["linkedin"] += 1
 
@@ -178,6 +185,12 @@ def _compute_all_metrics():
                             today_applied += 1
                         elif "naukri" in pl and st == "APPLIED":
                             today_by_portal["naukri_primary"] += 1
+                            today_applied += 1
+                        elif "indeed" in pl and st == "APPLIED":
+                            today_by_portal["indeed"] += 1
+                            today_applied += 1
+                        elif "linkedin" in pl and st == "APPLIED":
+                            today_by_portal["linkedin"] += 1
                             today_applied += 1
                         elif "instahyre" in pl and st == "APPLIED":
                             today_by_portal["instahyre"] += 1
@@ -230,31 +243,41 @@ def _compute_all_metrics():
         except Exception as e:
             print(f"Error reading linkedin_posts_history: {e}")
 
-    # 3. Google Sheets Status
+    # 3. Google Sheets Status (Dynamic live fetch from 'Apply Yourself' tab)
     sheet_data = {
-        "total": 517,
-        "pending": 196,
-        "applied": 196,
-        "review_required": 83,
-        "failed": 42
+        "total": 0,
+        "pending": 0,
+        "applied": 0,
+        "review_required": 0,
+        "failed": 0
     }
-    sheet_file = PROJECT_DIR / "google_sheets_status.json"
-    if sheet_file.exists():
-        try:
-            with open(sheet_file, "r", encoding="utf-8") as f:
-                sd = json.load(f)
-                statuses = {}
-                for k, v in sd.items():
-                    if isinstance(v, dict):
-                        st = v.get("status", "NONE").upper()
-                        statuses[st] = statuses.get(st, 0) + 1
-                sheet_data["pending"] = 196  # Verified baseline pending in sheet
-                sheet_data["applied"] = statuses.get("APPLIED", 196)
-                sheet_data["review_required"] = statuses.get("REVIEW_REQUIRED", 83)
-                sheet_data["failed"] = statuses.get("FAILED", 42)
-                sheet_data["total"] = 517
-        except Exception as e:
-            print(f"Error reading google_sheets_status: {e}")
+    try:
+        from core.sheets_manager import get_sheets_manager
+        sm = get_sheets_manager()
+        res = sm.fetch_apply_yourself_jobs()
+        if res.get("stats") and res["stats"].get("total", 0) > 0:
+            sheet_data = res["stats"]
+    except Exception as e:
+        print(f"Notice fetching live sheet stats: {e}")
+
+    if sheet_data["total"] == 0:
+        sheet_file = PROJECT_DIR / "google_sheets_status.json"
+        if sheet_file.exists():
+            try:
+                with open(sheet_file, "r", encoding="utf-8") as f:
+                    sd = json.load(f)
+                    statuses = {}
+                    for k, v in sd.items():
+                        if isinstance(v, dict):
+                            st = v.get("status", "NONE").upper()
+                            statuses[st] = statuses.get(st, 0) + 1
+                    sheet_data["total"] = len(sd)
+                    sheet_data["applied"] = statuses.get("APPLIED", 0)
+                    sheet_data["review_required"] = statuses.get("REVIEW_REQUIRED", 0)
+                    sheet_data["failed"] = statuses.get("FAILED", 0) + statuses.get("ERROR", 0)
+                    sheet_data["pending"] = statuses.get("PENDING", 0)
+            except Exception as e:
+                print(f"Error reading google_sheets_status: {e}")
 
     # 4. Profile 7-Day Algorithmic Visibility
     visibility_data = {
@@ -457,6 +480,18 @@ def _compute_all_metrics():
             naukri_dual_summary["primary"]["recruiter_actions"] = p.get("recruiter_actions") or 42
             naukri_dual_summary["primary"]["profile_views"] = p.get("profile_views") or 5
             naukri_dual_summary["primary"]["contact_views"] = p.get("contact_views") or 3
+            if p.get("match_radar"):
+                mr = p["match_radar"]
+                naukri_match_radar["overall_match_ratio"] = mr.get("ratio", naukri_match_radar["overall_match_ratio"])
+                naukri_match_radar["overall_match_pct"] = mr.get("match_pct", naukri_match_radar["overall_match_pct"])
+                naukri_match_radar["early_applicant_pct"] = mr.get("early_applicant_pct", naukri_match_radar["early_applicant_pct"])
+                naukri_match_radar["department_match_pct"] = mr.get("department_match_pct", naukri_match_radar["department_match_pct"])
+                naukri_match_radar["experience_match_pct"] = mr.get("experience_match_pct", naukri_match_radar["experience_match_pct"])
+                naukri_match_radar["location_match_pct"] = mr.get("location_match_pct", naukri_match_radar["location_match_pct"])
+                naukri_match_radar["industry_match_pct"] = mr.get("industry_match_pct", naukri_match_radar["industry_match_pct"])
+                naukri_match_radar["key_skills_match_pct"] = mr.get("key_skills_match_pct", naukri_match_radar["key_skills_match_pct"])
+            if p.get("top_keywords"):
+                naukri_match_radar["top_keywords"] = p["top_keywords"]
         if s:
             naukri_dual_summary["secondary"]["current_appearances"] = s.get("search_appearances") or s.get("search_appearances_90d") or 306
             naukri_dual_summary["secondary"]["recruiter_actions"] = s.get("recruiter_actions") or 33
@@ -727,6 +762,20 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
                 self.send_json({"success": False, "error": str(e), "jobs": []}, status=500)
             return
 
+        # 6b. Google Sheets Last Batch Run Outcome Report
+        if url_path == "/api/google-sheets/batch-outcome":
+            outcome_file = PROJECT_DIR / "sheet_batch_outcome.json"
+            if outcome_file.exists():
+                try:
+                    with open(outcome_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    self.send_json({"success": True, "outcome": data})
+                except Exception as e:
+                    self.send_json({"success": False, "error": str(e)}, status=500)
+            else:
+                self.send_json({"success": True, "outcome": None})
+            return
+
         # 7. Unified Zero-False-Positive Metrics Hub
         if url_path == "/api/metrics":
             try:
@@ -797,30 +846,13 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
         # Parse application statistics via battery-saving cached parser
         total_apps, status_counts, platform_counts, recent_apps = _parse_applications_log_cached()
 
-        def _check_valid_session(file_path: Path, required_cookies: list) -> bool:
-            if not file_path.exists():
-                return False
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    cookies = data.get("cookies", [])
-                    names = {c.get("name") for c in cookies}
-                    return any(req in names for req in required_cookies)
-            except Exception:
-                return False
-
-        # Check Active Sessions strictly (Zero False Positives: Require genuine candidate auth tokens)
+        # Check Active Sessions strictly (Zero False Positives: Unified with verify_all_portals)
+        from verify_all_portals import check_portal, PORTALS
         sessions = {
-            "naukri_primary": _check_valid_session(PROJECT_DIR / "session_naukri.json", ["nauk_at", "is_login", "nauk_sid"]),
-            "naukri_secondary": _check_valid_session(PROJECT_DIR / "session_naukri_secondary.json", ["nauk_at", "is_login", "nauk_sid"]),
-            "linkedin": _check_valid_session(PROJECT_DIR / "session_linkedin.json", ["li_at"]),
-            "instahyre": _check_valid_session(PROJECT_DIR / "session_instahyre.json", ["sessionid", "auth_token"]),
-            "cutshort": _check_valid_session(PROJECT_DIR / "session_cutshort.json", ["cutshort_authentication", "user_logged_in_once", "cssid", "JSESSIONID"]),
-            "wellfound": _check_valid_session(PROJECT_DIR / "session_wellfound.json", ["remember_user_token", "auth_token", "ajs_user_id"]),
-            "hirist": _check_valid_session(PROJECT_DIR / "session_hirist.json", ["hirist_session", "user_id", "auth", "token", "candidate_id"]),
-            "indeed": _check_valid_session(PROJECT_DIR / "session_indeed.json", ["PPID", "SHARED_SESSION_TOKEN", "LOGGED_IN", "HP_MYINDEED", "SOCK", "UD", "INDEED_CSRF_TOKEN"]),
-            "universal_ats": (PROJECT_DIR / "session_universal_ats.json").exists(),
+            key: (check_portal(key, conf)["status"] == "LOGGED IN")
+            for key, conf in PORTALS.items()
         }
+        sessions["universal_ats"] = (PROJECT_DIR / "session_universal_ats.json").exists()
 
         self.send_json({
             "candidate": {
@@ -1162,7 +1194,14 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
 
         # 11. Interactive Chrome Login Capture
         if url_path == "/api/chrome/open-login":
-            site = (body.get("site") or "instahyre").lower().strip()
+            site = (body.get("site") or "").lower().strip()
+            valid_portals = ["naukri", "naukri_secondary", "linkedin", "indeed", "instahyre", "cutshort", "wellfound", "hirist"]
+            if site not in valid_portals:
+                self.send_json({
+                    "success": False,
+                    "error": f"Invalid or missing portal '{site}'. Allowed: {', '.join(valid_portals)}"
+                }, status=400)
+                return
             print(f"\n[Chrome Login API] Launching login capture for portal: '{site}'")
             env = os.environ.copy()
             if sys.platform == "darwin":

@@ -82,51 +82,78 @@ def main():
                 active_page = context.pages[-1] if context.pages else page
                 curr_url = active_page.url.lower()
                 cookies = context.cookies()
-                
+                c_names = {c.get("name") for c in cookies}
+
+                # 1. OAUTH FLOW PROTECTION:
+                # If user is currently on Google, Apple, LinkedIn OAuth, or identity provider, NEVER detect as logged in!
+                # This guarantees user has ample time to type email, password, and complete 2FA without premature window closure.
+                oauth_domains = ["accounts.google.com", "google.com", "appleid.apple.com", "auth0.com", "oauth", "signin.aws"]
+                if any(dom in curr_url for dom in oauth_domains):
+                    time.sleep(1)
+                    continue
+
+                # 2. PORTAL-SPECIFIC STRICT DETECTION (Zero false positives, domain-verified)
                 if site in ("naukri", "naukri_secondary", "naukri_tertiary"):
-                    has_naukri_auth = any(c["name"] in ["nauk_user", "naukri_auth", "n_auth", "nauk_at", "is_login", "nauk_sid"] for c in cookies)
-                    if has_naukri_auth or "mnjuser" in curr_url or "homepage" in curr_url:
+                    has_naukri_auth = any(c in c_names for c in ["nauk_user", "naukri_auth", "n_auth", "nauk_at", "is_login", "nauk_sid"])
+                    is_naukri_domain = "naukri.com" in curr_url
+                    if is_naukri_domain and "login" not in curr_url and (has_naukri_auth or "mnjuser" in curr_url or "homepage" in curr_url):
                         print("  [✓] Detected valid Naukri candidate authentication cookies!")
                         time.sleep(2)
                         break
+
                 elif site == "linkedin":
-                    has_li_at = any(c["name"] == "li_at" and len(c.get("value", "")) > 10 for c in cookies)
-                    is_logged_in_page = ("feed" in curr_url or "mynetwork" in curr_url or "jobs" in curr_url) and "login" not in curr_url and "checkpoint" not in curr_url
-                    if has_li_at and is_logged_in_page:
+                    has_li_at = any(c.get("name") == "li_at" and len(c.get("value", "")) > 15 for c in cookies)
+                    is_li_domain = "linkedin.com" in curr_url
+                    is_logged_in_page = ("feed" in curr_url or "mynetwork" in curr_url or "jobs" in curr_url) and not any(x in curr_url for x in ["login", "checkpoint", "uas"])
+                    if is_li_domain and has_li_at and is_logged_in_page:
                         print("  [✓] Detected valid li_at authentication cookie and logged-in feed!")
                         time.sleep(2)
                         break
+
                 elif site == "instahyre":
-                    has_insta_auth = any(c.get("name") in ["sessionid", "csrftoken", "auth_token"] for c in cookies)
-                    if (has_insta_auth and "login" not in curr_url) or "candidate" in curr_url or "opportunities" in curr_url:
+                    is_insta_domain = "instahyre.com" in curr_url
+                    is_candidate_page = ("candidate/opportunities" in curr_url or "candidate/profile" in curr_url or "candidate/dashboard" in curr_url)
+                    has_insta_auth = any(c in c_names for c in ["sessionid", "auth_token"])
+                    if is_insta_domain and not any(x in curr_url for x in ["/login", "signin", "signup"]) and (is_candidate_page or (has_insta_auth and "candidate" in curr_url)):
                         print("  [✓] Detected logged-in Instahyre candidate dashboard!")
                         time.sleep(2)
                         break
+
                 elif site == "cutshort":
-                    has_cs_auth = any(c.get("name") in ["cutshort_authentication", "user_logged_in_once", "cssid", "JSESSIONID", "token", "jwt"] for c in cookies)
-                    if (has_cs_auth and "login" not in curr_url) or "dashboard" in curr_url or "profile" in curr_url or "inbox" in curr_url or "jobs" in curr_url:
+                    is_cs_domain = "cutshort.io" in curr_url
+                    has_cs_auth = any(c.get("name") == "cutshort_authentication" and len(c.get("value", "")) > 15 for c in cookies)
+                    is_cs_page = ("dashboard" in curr_url or "profile" in curr_url or "inbox" in curr_url or "jobs" in curr_url)
+                    if is_cs_domain and "login" not in curr_url and (has_cs_auth or is_cs_page):
                         print("  [✓] Detected logged-in Cutshort dashboard and verified candidate auth cookie!")
                         time.sleep(2)
                         break
+
                 elif site == "wellfound":
-                    has_wf_auth = any(c.get("name") in ["_wellfound", "remember_user_token", "auth_token", "ajs_user_id"] for c in cookies)
-                    if (has_wf_auth and "login" not in curr_url) or "jobs" in curr_url or "profile" in curr_url or "overview" in curr_url or "candidates" in curr_url:
+                    is_wf_domain = "wellfound.com" in curr_url
+                    has_wf_auth = any(c in c_names for c in ["remember_user_token", "auth_token"])
+                    is_wf_page = ("jobs" in curr_url or "profile" in curr_url or "overview" in curr_url or "candidates" in curr_url)
+                    if is_wf_domain and "login" not in curr_url and (has_wf_auth or is_wf_page):
                         print("  [✓] Detected genuine authenticated Wellfound user session!")
                         time.sleep(2)
                         break
+
                 elif site == "hirist":
-                    has_hirist_auth = any(c.get("name") in ["hirist_session", "user_id", "auth", "token", "candidate_id"] for c in cookies)
-                    if (has_hirist_auth and "login" not in curr_url) or "candidate" in curr_url or "dashboard" in curr_url:
+                    is_hirist_domain = ("hirist.tech" in curr_url or "hirist.com" in curr_url)
+                    has_hirist_auth = any(c in c_names for c in ["hirist_session", "candidate_id", "user_id"])
+                    is_hirist_logged_in = ("candidate/dashboard" in curr_url or "candidate/jobs" in curr_url or "candidate/profile" in curr_url or "candidate/my-applications" in curr_url)
+                    if is_hirist_domain and "candidate/login" not in curr_url and not any(x in curr_url for x in ["/login", "signin", "signup"]) and (is_hirist_logged_in or has_hirist_auth):
                         print("  [✓] Detected logged-in Hirist candidate dashboard!")
                         time.sleep(2)
                         break
+
                 elif site == "indeed":
+                    is_indeed_domain = "indeed.com" in curr_url
                     has_signin = False
                     try:
                         signin_elem = active_page.locator("a[href*='account/login'], a:has-text('Sign in')").first
-                        has_signin = signin_elem.count() > 0 and signin_elem.is_visible()
+                        signin_visible = signin_elem.count() > 0 and signin_elem.is_visible()
                     except Exception:
-                        pass
+                        signin_visible = False
 
                     has_profile = False
                     try:
@@ -137,7 +164,7 @@ def main():
 
                     has_auth_cookie = any(c.get("name") in ["PPID", "SHARED_SESSION_TOKEN", "LOGGED_IN", "HP_MYINDEED", "UD", "SOCK"] for c in cookies)
 
-                    if (has_profile or has_auth_cookie) and not has_signin and "login" not in curr_url and "__cf_chl" not in curr_url:
+                    if is_indeed_domain and (has_profile or has_auth_cookie) and not signin_visible and "login" not in curr_url and "__cf_chl" not in curr_url:
                         print("  [✓] Detected genuine authenticated Indeed candidate session!")
                         time.sleep(2)
                         break
@@ -172,6 +199,18 @@ def main():
                 print("It appears login was not completed. Please log in with your email/Google account until the candidate dashboard appears.")
             else:
                 print("\n[✓] Successfully verified Instahyre authenticated session.")
+        elif site == "cutshort":
+            has_cs_auth = any(c.get("name") == "cutshort_authentication" and len(c.get("value", "")) > 15 for c in cookies)
+            if not has_cs_auth:
+                print("\n[⚠️ WARNING] Cutshort authentication token 'cutshort_authentication' was NOT detected!")
+            else:
+                print("\n[✓] Successfully verified Cutshort candidate authentication session.")
+        elif site == "hirist":
+            has_hirist_auth = any(c.get("name") in ["hirist_session", "candidate_id", "user_id"] for c in cookies)
+            if not has_hirist_auth and "login" in curr_url:
+                print("\n[⚠️ WARNING] Hirist candidate authenticated session was NOT verified!")
+            else:
+                print("\n[✓] Successfully captured Hirist candidate session.")
         elif site == "wellfound":
             print("\n[✓] Successfully captured Wellfound authentication cookies.")
         elif site == "indeed":

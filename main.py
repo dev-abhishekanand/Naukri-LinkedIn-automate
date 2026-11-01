@@ -269,6 +269,9 @@ def command_sheet_sync(args):
 
     print(f"Queue prepared: {len(to_process)} fresh job(s) ready.\n")
 
+    applied_jobs = []
+    unapplied_jobs = []
+
     try:
         for idx, job in enumerate(to_process, 1):
             url = job["direct_apply_url"]
@@ -289,6 +292,14 @@ def command_sheet_sync(args):
                     company=company,
                     job_title=title
                 )
+                unapplied_jobs.append({
+                    "company": company,
+                    "title": title,
+                    "url": url,
+                    "row_index": row_idx,
+                    "status": "FAILED",
+                    "reason": "Invalid or missing URL in sheet"
+                })
                 continue
 
             try:
@@ -311,16 +322,43 @@ def command_sheet_sync(args):
                     tailored_resume_path=tailored_resume
                 )
 
+                if final_status in ("APPLIED", "SUCCESS"):
+                    applied_jobs.append({
+                        "company": company,
+                        "title": title,
+                        "url": url,
+                        "row_index": row_idx,
+                        "status": final_status
+                    })
+                else:
+                    unapplied_jobs.append({
+                        "company": company,
+                        "title": title,
+                        "url": url,
+                        "row_index": row_idx,
+                        "status": final_status,
+                        "reason": reason
+                    })
+
             except Exception as e:
                 print(f"    ❌ Exception while applying: {e}")
+                err_msg = f"Application error: {e}"
                 update_job_status(
                     direct_apply_url=url,
                     status="REVIEW_REQUIRED",
-                    reason=f"Application error: {e}",
+                    reason=err_msg,
                     row_index=row_idx,
                     company=company,
                     job_title=title
                 )
+                unapplied_jobs.append({
+                    "company": company,
+                    "title": title,
+                    "url": url,
+                    "row_index": row_idx,
+                    "status": "REVIEW_REQUIRED",
+                    "reason": err_msg
+                })
 
             # Human-like delay between applications
             if idx < len(to_process):
@@ -331,7 +369,42 @@ def command_sheet_sync(args):
     finally:
         applicant.close_session()
 
-    print("\n✅ Batch execution completed. All statuses updated in Application History.")
+    from datetime import datetime
+    import json
+    batch_outcome = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "total_processed": len(to_process),
+        "applied_count": len(applied_jobs),
+        "unapplied_count": len(unapplied_jobs),
+        "applied_jobs": applied_jobs,
+        "unapplied_jobs": unapplied_jobs,
+        "message": f"{len(unapplied_jobs)} jobs left for apply. Just go and apply yourself!" if unapplied_jobs else "All processed jobs were successfully applied!"
+    }
+    outcome_file = PROJECT_DIR / "sheet_batch_outcome.json"
+    try:
+        with open(outcome_file, "w", encoding="utf-8") as f:
+            json.dump(batch_outcome, f, indent=2)
+    except Exception as e:
+        print(f"Error saving batch outcome: {e}")
+
+    print("\n" + "=" * 70)
+    print("📊 GOOGLE SHEET BATCH RUN OUTCOME REPORT")
+    print("=" * 70)
+    print(f"✓ Total Jobs Processed: {len(to_process)}")
+    print(f"✓ Successfully Applied: {len(applied_jobs)}")
+    if unapplied_jobs:
+        print(f"⚠️ Unapplied / Review Required: {len(unapplied_jobs)}")
+        print(f"\n👉 {len(unapplied_jobs)} jobs left for apply. Just go and apply yourself!")
+        print("\nDirect Links to visit and apply yourself:")
+        for u_idx, u_job in enumerate(unapplied_jobs, 1):
+            print(f"  [{u_idx}] {u_job['title']} @ {u_job['company']} (Row #{u_job['row_index']})")
+            print(f"      🔗 {u_job['url']}")
+            if u_job.get("reason"):
+                print(f"      Note: {u_job['reason']}")
+    else:
+        print("🎉 All processed jobs were applied automatically without intervention!")
+    print("=" * 70 + "\n")
+    print("✅ Batch execution completed. All statuses updated in Application History.")
 
 
 def main():

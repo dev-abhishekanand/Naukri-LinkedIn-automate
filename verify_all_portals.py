@@ -45,26 +45,26 @@ PORTALS = {
     "instahyre": {
         "name": "Instahyre",
         "file": "session_instahyre.json",
-        "auth_cookies": ["sessionid", "auth_token", "csrftoken"],
-        "critical_cookies": ["sessionid", "auth_token"]
+        "auth_cookies": ["auth_token", "candidate_id", "sessionid"],
+        "critical_cookies": ["auth_token"]
     },
     "cutshort": {
         "name": "Cutshort",
         "file": "session_cutshort.json",
-        "auth_cookies": ["cutshort_authentication", "user_logged_in_once", "token", "jwt"],
+        "auth_cookies": ["cutshort_authentication", "user_logged_in_once"],
         "critical_cookies": ["cutshort_authentication"]
     },
     "wellfound": {
         "name": "Wellfound",
         "file": "session_wellfound.json",
-        "auth_cookies": ["remember_user_token", "auth_token", "ajs_user_id", "jwt"],
-        "critical_cookies": ["remember_user_token", "auth_token", "ajs_user_id"]
+        "auth_cookies": ["remember_user_token", "auth_token", "_wellfound"],
+        "critical_cookies": ["remember_user_token", "auth_token"]
     },
     "hirist": {
         "name": "Hirist",
         "file": "session_hirist.json",
-        "auth_cookies": ["hirist_session", "user_id", "auth", "token", "candidate_id"],
-        "critical_cookies": ["hirist_session", "user_id"]
+        "auth_cookies": ["hirist_session", "candidate_id", "user_id"],
+        "critical_cookies": ["hirist_session", "candidate_id"]
     }
 }
 
@@ -152,16 +152,40 @@ def check_portal(key: str, conf: dict) -> dict:
             }
 
     elif key == "instahyre":
-        auth_cookie = cookie_map.get("sessionid") or cookie_map.get("auth_token")
-        if not auth_cookie:
+        # Check if auth_token exists or candidate localStorage is present
+        origins = data.get("origins", [])
+        ls_keys = set()
+        for o in origins:
+            for item in o.get("localStorage", []):
+                ls_keys.add(item.get("name", ""))
+                # If only login rum exists, it's NOT logged in
+                if item.get("name") == "instahyre_rum_view_windows_v1" and "login" in item.get("value", "") and "candidate" not in item.get("value", ""):
+                    ls_keys.add("__only_login__")
+
+        has_auth_cookie = "auth_token" in cookie_map or "candidate_id" in cookie_map
+        has_auth_storage = any(k in ls_keys for k in ["user", "candidate_id", "email", "profile"])
+        
+        if "__only_login__" in ls_keys and not has_auth_cookie:
             return {
                 "key": key,
                 "name": conf["name"],
                 "file": conf["file"],
                 "status": "NOT LOGGED IN",
-                "reason": "sessionid / auth_token missing",
+                "reason": "Anonymous session at login page only",
                 "cookies_found": len(cookies),
-                "auth_tokens": auth_found,
+                "auth_tokens": [],
+                "candidate_id": None
+            }
+
+        if not has_auth_cookie and not has_auth_storage and not ("sessionid" in cookie_map and len(cookies) > 20):
+            return {
+                "key": key,
+                "name": conf["name"],
+                "file": conf["file"],
+                "status": "NOT LOGGED IN",
+                "reason": "Missing candidate authentication credentials",
+                "cookies_found": len(cookies),
+                "auth_tokens": [],
                 "candidate_id": None
             }
 
