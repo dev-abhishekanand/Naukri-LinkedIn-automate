@@ -10,6 +10,29 @@ pinned: false
 
 # Naukri & LinkedIn AI Job Automation Suite
 
+> ### ☁️ GitHub Codespaces Quick Commands
+> 
+> When running in GitHub Codespaces, use these convenient quick commands in the terminal:
+> 
+> * **Restart Dashboard & Live Browser Stream (Port 8585 & 6080):**
+>   ```bash
+>   bash restart_cloud.sh
+>   ```
+> * **One-Line Force Kill & Clean Restart:**
+>   ```bash
+>   pkill -9 -f server.py; pkill -9 -f supervisord; python3 server.py --port 8585
+>   ```
+> * **Unpack Uploaded Sessions & Resume (`cloud_bundle.zip`):**
+>   ```bash
+>   unzip -o cloud_bundle.zip && rm cloud_bundle.zip
+>   ```
+> * **Link Virtual Environment Path (`./.venv/bin/python`):**
+>   ```bash
+>   mkdir -p .venv/bin && ln -sf $(which python3) .venv/bin/python
+>   ```
+> 
+> ---
+
 A production-ready personal automation suite that searches **Naukri.com** and **LinkedIn** for target roles, automatically applies, answers complex screening questionnaires using facts from your profile, tailors ATS-compliant PDF resumes, conducts automated cold outreach to hiring recruiters on LinkedIn posts, and tracks all applications and obstacles in a live Google Sheet.
 
 Features:
