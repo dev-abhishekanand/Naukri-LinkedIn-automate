@@ -1,10 +1,10 @@
 ---
-title: Job Automation Hub
+title: Job Automator AI Hub
 emoji: 🚀
 colorFrom: blue
 colorTo: indigo
 sdk: docker
-app_port: 8585
+app_port: 7860
 pinned: false
 ---
 

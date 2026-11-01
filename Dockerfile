@@ -31,12 +31,13 @@ RUN python -m playwright install --with-deps chromium
 # Copy application files
 COPY . /app/
 
-# Make scripts executable
+# Make scripts executable and set permissive permissions
 RUN chmod +x /app/*.py /app/*.sh 2>/dev/null || true
+RUN chmod -R 777 /app /var/log /var/run /tmp 2>/dev/null || true
 
 # Copy supervisord config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-EXPOSE 8585 6080
+EXPOSE 7860 8585 6080
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
