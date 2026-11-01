@@ -1261,6 +1261,31 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
             })
             return
 
+        # 11c. Reset Single or All Portal Sessions
+        if url_path == "/api/session/reset":
+            portal = (body.get("portal") or "all").lower().strip()
+            try:
+                from login_portal import backup_and_clean_all, clean_single
+                if portal == "all":
+                    backup_and_clean_all()
+                    self.send_json({"success": True, "message": "All portal sessions archived and cleared! Ready for fresh login."})
+                else:
+                    clean_single(portal)
+                    self.send_json({"success": True, "message": f"Session for {portal.upper()} cleared! Ready for fresh login."})
+            except Exception as e:
+                self.send_json({"success": False, "error": str(e)}, status=500)
+            return
+
+        # 11d. Verify Live Status of All Sessions
+        if url_path == "/api/session/verify-all":
+            try:
+                from verify_all_portals import verify_all
+                res = verify_all()
+                self.send_json({"success": True, "results": res})
+            except Exception as e:
+                self.send_json({"success": False, "error": str(e)}, status=500)
+            return
+
         # 12. Open Portal URL in Chrome Profile
         if url_path == "/api/chrome/open-portal":
             target_url = body.get("url", "").strip()

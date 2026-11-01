@@ -288,37 +288,55 @@
                 <span className="text-xs font-semibold text-slate-400 mr-1">Sessions:</span>
                 {statusData?.sessions ? (
                   <>
-                    <button onClick={() => !statusData.sessions.naukri_primary && openRelogin('naukri')} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.naukri_primary ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
+                    <button onClick={() => openRelogin('naukri')} title="Click to view or re-login" className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.naukri_primary ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusData.sessions.naukri_primary ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                       Naukri P1 {statusData.sessions.naukri_primary ? '✓' : '⚠️ Login'}
                     </button>
-                    <button onClick={() => !statusData.sessions.naukri_secondary && openRelogin('naukri_secondary')} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.naukri_secondary ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
+                    <button onClick={() => openRelogin('naukri_secondary')} title="Click to view or re-login" className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.naukri_secondary ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusData.sessions.naukri_secondary ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                       Naukri P2 {statusData.sessions.naukri_secondary ? '✓' : '⚠️ Login'}
                     </button>
-                    <button onClick={() => !statusData.sessions.linkedin && openRelogin('linkedin')} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.linkedin ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
+                    <button onClick={() => openRelogin('linkedin')} title="Click to view or re-login" className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.linkedin ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusData.sessions.linkedin ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                       LinkedIn {statusData.sessions.linkedin ? '✓' : '⚠️ Login'}
                     </button>
-                    <button onClick={() => !statusData.sessions.instahyre && openRelogin('instahyre')} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.instahyre ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
+                    <button onClick={() => openRelogin('instahyre')} title="Click to view or re-login" className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.instahyre ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusData.sessions.instahyre ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                       Instahyre {statusData.sessions.instahyre ? '✓' : '⚠️ Login'}
                     </button>
-                    <button onClick={() => !statusData.sessions.cutshort && openRelogin('cutshort')} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.cutshort ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
+                    <button onClick={() => openRelogin('cutshort')} title="Click to view or re-login" className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.cutshort ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusData.sessions.cutshort ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                       Cutshort {statusData.sessions.cutshort ? '✓' : '⚠️ Login'}
                     </button>
-                    <button onClick={() => !statusData.sessions.wellfound && openRelogin('wellfound')} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.wellfound ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
+                    <button onClick={() => openRelogin('wellfound')} title="Click to view or re-login" className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.wellfound ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusData.sessions.wellfound ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                       Wellfound {statusData.sessions.wellfound ? '✓' : '⚠️ Login'}
                     </button>
-                    <button onClick={() => !statusData.sessions.hirist && openRelogin('hirist')} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.hirist ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
+                    <button onClick={() => openRelogin('hirist')} title="Click to view or re-login" className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.hirist ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusData.sessions.hirist ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                       Hirist {statusData.sessions.hirist ? '✓' : '⚠️ Login'}
                     </button>
-                    <button onClick={() => openRelogin('indeed')} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.indeed ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
+                    <button onClick={() => openRelogin('indeed')} title="Click to view or re-login" className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border flex items-center gap-1.5 transition ${statusData.sessions.indeed ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40 hover:bg-rose-900/50'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusData.sessions.indeed ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                       Indeed {statusData.sessions.indeed ? '✓' : '⚠️ Login'}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (confirm("⚠️ Clear all existing sessions and log in fresh to all portals?")) {
+                          const res = await fetch('/api/session/reset', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ portal: 'all' })
+                          });
+                          const d = await res.json();
+                          alert(d.message || "All sessions cleared!");
+                          window.location.reload();
+                        }
+                      }}
+                      title="Archive and clear all sessions to start fresh"
+                      className="px-2 py-1 rounded-lg text-xs bg-rose-950/80 text-rose-300 border border-rose-500/50 hover:bg-rose-900 font-semibold"
+                    >
+                      🧹 Clear All
                     </button>
                   </>
                 ) : (
@@ -524,25 +542,42 @@
                   <span className="select-all">{reloginModal.command}</span>
                   <button onClick={() => { navigator.clipboard.writeText(reloginModal.command); alert("Copied command!"); }} className="ml-2 px-2 py-1 bg-brand-600 hover:bg-brand-500 text-white rounded text-[11px] font-sans">Copy</button>
                 </div>
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-between items-center pt-2">
+                  <button onClick={async () => {
+                    const target = reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase();
+                    if (confirm(`Remove old session for ${target.toUpperCase()} and start fresh?`)) {
+                      const res = await fetch('/api/session/reset', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ portal: target })
+                      });
+                      const d = await res.json();
+                      alert(d.message || "Session reset!");
+                      window.location.reload();
+                    }
+                  }} className="px-3 py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900 border border-rose-500/40 text-rose-300 text-xs font-semibold">
+                    🗑️ Reset This Session
+                  </button>
+
                   <button onClick={async () => {
                     try {
+                      const target = reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase();
                       const res = await fetch('/api/chrome/open-login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ site: reloginModal.portalKey || (reloginModal.site || 'instahyre').toLowerCase() })
+                        body: JSON.stringify({ site: target })
                       });
                       const data = await res.json();
                       if (data.success) {
-                        alert(data.message || "Browser process launched! If running in cloud, check noVNC port 6080 to view the browser, or use the cookie importer below.");
+                        alert(data.message || `Google Chrome window opened for ${target.toUpperCase()}! Complete your login in Chrome.`);
                       } else {
                         alert("Error: " + (data.error || "Failed to launch browser"));
                       }
                     } catch (err) {
                       alert("Network error: " + err.message);
                     }
-                  }} className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold">
-                    Launch Chrome Window
+                  }} className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-600/30">
+                    🚀 Launch Chrome Window
                   </button>
                 </div>
 

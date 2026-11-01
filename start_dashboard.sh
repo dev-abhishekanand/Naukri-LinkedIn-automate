@@ -10,10 +10,9 @@ cd "$PROJECT_DIR" || exit 1
 # Check if port 8585 is already in use
 PID=$(lsof -ti :8585 2>/dev/null)
 if [ -n "$PID" ]; then
-    echo "✓ Master Command Center is already running on PID $PID."
-    echo "👉 Open in your browser: http://localhost:8585"
-    open "http://localhost:8585" 2>/dev/null || true
-    exit 0
+    echo "Stopping existing server on PID $PID to reload fresh code..."
+    kill -9 $PID 2>/dev/null || true
+    sleep 1
 fi
 
 PYTHON_BIN="python3"
