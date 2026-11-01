@@ -28,7 +28,7 @@ if str(PROJECT_DIR) not in sys.path:
 WEB_DIR = PROJECT_DIR / "web"
 LOG_DIR = PROJECT_DIR / "scheduler_logs"
 APPLICATIONS_LOG = PROJECT_DIR / "applications_log.csv"
-VENV_PYTHON = PROJECT_DIR / ".venv" / "bin" / "python"
+VENV_PYTHON = Path(sys.executable)
 
 from scripts.automation_diagnostics import diagnose_daily_run, trigger_task_run
 from core.sheets_manager import get_sheets_manager
@@ -1161,9 +1161,19 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
         # 11. Interactive Chrome Login Capture
         if url_path == "/api/chrome/open-login":
             site = body.get("site", "naukri").lower()
+            env = os.environ.copy()
+            if "DISPLAY" not in env:
+                env["DISPLAY"] = ":99"
             cmd = [str(VENV_PYTHON), "login_capture.py", site]
-            proc = subprocess.Popen(cmd, cwd=str(PROJECT_DIR))
-            self.send_json({"success": True, "message": f"Opened Google Chrome for {site.upper()} authentication (PID {proc.pid})"})
+            try:
+                proc = subprocess.Popen(cmd, cwd=str(PROJECT_DIR), env=env)
+                self.send_json({
+                    "success": True,
+                    "message": f"Browser process launched for {site.upper()} (PID {proc.pid}). If on Cloud/Codespaces, view display stream on Port 6080 or use Instant Cookie Importer.",
+                    "pid": proc.pid
+                })
+            except Exception as e:
+                self.send_json({"success": False, "error": str(e)}, status=500)
             return
 
         # 11b. Direct Session / Cookie Importer (cURL or Cookie-Editor JSON)
