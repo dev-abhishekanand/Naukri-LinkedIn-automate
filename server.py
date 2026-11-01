@@ -880,7 +880,7 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         url_path = parsed.path
-        length = int(self.headers.get("Content-Length", 0))
+        length = int(self.headers.get("Content-Length", 0) or 0)
         body_raw = self.rfile.read(length) if length > 0 else b"{}"
 
         try:
@@ -1194,7 +1194,8 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
 
         # 11. Interactive Chrome Login Capture
         if url_path == "/api/chrome/open-login":
-            site = (body.get("site") or "").lower().strip()
+            site = (body.get("site") or body.get("portal") or "").lower().strip()
+            print(f"[DEBUG open-login] site='{site}', body={body}", flush=True)
             valid_portals = ["naukri", "naukri_secondary", "linkedin", "indeed", "instahyre", "cutshort", "wellfound", "hirist"]
             if site not in valid_portals:
                 self.send_json({
@@ -1245,7 +1246,6 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
             # Format A: JSON list from Cookie-Editor
             if raw_text.startswith('[') and raw_text.endswith(']'):
                 try:
-                    import json
                     raw_list = json.loads(raw_text)
                     for item in raw_list:
                         cookies.append({
@@ -1287,7 +1287,6 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
 
             out_file = PROJECT_DIR / f"session_{portal}.json"
             session_payload = {"cookies": cookies, "origins": []}
-            import json
             with open(out_file, "w", encoding="utf-8") as f:
                 json.dump(session_payload, f, indent=2)
 

@@ -21,7 +21,7 @@ if [ -f "./.venv/bin/python" ]; then
 fi
 
 echo "🚀 Starting Master Command Center on http://localhost:8585..."
-nohup $PYTHON_BIN server.py --port 8585 > /tmp/naukri_dashboard.log 2>&1 &
+nohup $PYTHON_BIN -u server.py --port 8585 > /tmp/naukri_dashboard.log 2>&1 &
 SERVER_PID=$!
 sleep 1
 
