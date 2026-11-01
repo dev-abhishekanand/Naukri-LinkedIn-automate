@@ -10,6 +10,8 @@ __pycache__/
 
 # Browser authentication sessions
 session_*.json
+chrome_profile_*/
+session_chrome_*/
 
 # Local application/runtime data
 applications_log.csv
@@ -49,3 +51,9 @@ generated/
 scheduler_logs/
 .scheduler.lock/
 sheet1_backup.json
+
+# Temporary screenshots and diagnostic dumps
+*.png
+*_dump.txt
+user_details.html
+

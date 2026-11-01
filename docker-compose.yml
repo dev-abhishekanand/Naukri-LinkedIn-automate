@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  job-automation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: naukri-linkedin-ai
+    restart: unless-stopped
+    ports:
+      - "8585:8585"  # Command Center Dashboard
+      - "6080:6080"  # Web VNC (View Chrome screen from phone/browser)
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DISPLAY=:99
+    volumes:
+      # Persist authentication sessions, applicant logs, and state
+      - ./session_naukri.json:/app/session_naukri.json
+      - ./session_naukri_secondary.json:/app/session_naukri_secondary.json
+      - ./session_linkedin.json:/app/session_linkedin.json
+      - ./session_indeed.json:/app/session_indeed.json
+      - ./session_instahyre.json:/app/session_instahyre.json
+      - ./session_cutshort.json:/app/session_cutshort.json
+      - ./session_universal_ats.json:/app/session_universal_ats.json
+      - ./profile.yaml:/app/profile.yaml
+      - ./applications_log.csv:/app/applications_log.csv
+      - ./external_jobs.csv:/app/external_jobs.csv
+      - ./processed_jobs.csv:/app/processed_jobs.csv
+      - ./chrome_profile_indeed:/app/chrome_profile_indeed
+      - ./chrome_profile_abhishek_anand_7601:/app/chrome_profile_abhishek_anand_7601

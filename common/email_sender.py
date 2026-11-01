@@ -148,25 +148,25 @@ def clean_email_address(raw_email: str) -> str | None:
     return clean_addr
 
 
-def send_email(
+import time
+import imaplib
+
+
+def build_mime_message(
     to_email: str,
     subject: str,
     body_text: str,
     attachment_path: str | None = None,
     attachment_display_name: str | None = None,
     cc: str | None = None,
-) -> bool:
-    """Sends an email with optional resume attachment using Gmail SMTP.
-    Attachment filename is guaranteed to be clean and human-styled (e.g. Abhishek_Anand_Resume.pdf)."""
+    in_reply_to: str | None = None,
+    references: str | None = None,
+) -> tuple[MIMEMultipart, str]:
+    """Builds a formatted MIMEMultipart message with optional tailored resume attachment."""
     _load_dotenv()
     gmail_user = os.getenv("GMAIL_USER")
-    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
-
-    if not gmail_user or not gmail_password:
-        raise ValueError(
-            "GMAIL_USER or GMAIL_APP_PASSWORD is not set in .env. "
-            "Please configure your Gmail App Password first."
-        )
+    if not gmail_user:
+        raise ValueError("GMAIL_USER is not set in .env")
 
     cleaned_to = clean_email_address(to_email)
     if not cleaned_to:
@@ -177,6 +177,10 @@ def send_email(
     msg["From"] = f"Abhishek Anand <{gmail_user}>"
     msg["To"] = to_email
     msg["Subject"] = subject
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+    if references:
+        msg["References"] = references
     if cc:
         msg["Cc"] = cc
 
@@ -209,6 +213,111 @@ def send_email(
         encoders.encode_base64(part)
         part.add_header("Content-Disposition", "attachment", filename=out_filename)
         msg.attach(part)
+
+    return msg, to_email
+
+
+def create_draft(
+    to_email: str,
+    subject: str,
+    body_text: str,
+    attachment_path: str | None = None,
+    attachment_display_name: str | None = None,
+    cc: str | None = None,
+    in_reply_to: str | None = None,
+    references: str | None = None,
+) -> bool:
+    """Creates an email draft in Gmail's [Gmail]/Drafts folder via IMAP.
+    DOES NOT send the email to the recipient. Prepares it in Abhishek's Gmail Drafts
+    folder with recipient, subject, body, and resume attachment for manual review."""
+    _load_dotenv()
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+
+    if not gmail_user or not gmail_password:
+        raise ValueError(
+            "GMAIL_USER or GMAIL_APP_PASSWORD is not set in .env. "
+            "Please configure your Gmail App Password first."
+        )
+
+    msg, to_email = build_mime_message(
+        to_email=to_email,
+        subject=subject,
+        body_text=body_text,
+        attachment_path=attachment_path,
+        attachment_display_name=attachment_display_name,
+        cc=cc,
+        in_reply_to=in_reply_to,
+        references=references,
+    )
+
+    mail = imaplib.IMAP4_SSL("imap.gmail.com", timeout=20)
+    mail.login(gmail_user, gmail_password)
+    now_internal = imaplib.Time2Internaldate(time.time())
+    status, res = mail.append('"[Gmail]/Drafts"', '(\\Draft)', now_internal, msg.as_bytes())
+    mail.logout()
+
+    if status != "OK":
+        raise RuntimeError(f"Failed to append draft to [Gmail]/Drafts: {res}")
+    return True
+
+
+# =========================================================================
+# SYSTEM-WIDE STRICT DRAFT MODE LOCK
+# Policy: The system is STRICTLY LOCKED in Draft Mode.
+# No outbound emails may be sent directly to recruiters or HR contacts.
+# All outreach messages must only be composed inside Abhishek's Gmail Drafts
+# folder ([Gmail]/Drafts) so he can manually review and decide whether to send.
+# =========================================================================
+STRICT_DRAFT_MODE = True
+
+
+def send_email(
+    to_email: str,
+    subject: str,
+    body_text: str,
+    attachment_path: str | None = None,
+    attachment_display_name: str | None = None,
+    cc: str | None = None,
+    in_reply_to: str | None = None,
+    references: str | None = None,
+    allow_unreviewed_send: bool = False,
+) -> bool:
+    """Sends an email with optional resume attachment using Gmail SMTP.
+    STRICT DRAFT MODE: All automatic sends are strictly intercepted and redirected
+    to create a draft in Gmail's [Gmail]/Drafts folder instead."""
+    if STRICT_DRAFT_MODE and not allow_unreviewed_send:
+        print(f"🔒 [STRICT DRAFT MODE] Intercepted send to {to_email}. Diverting to Gmail Drafts folder for Abhishek's manual review.")
+        return create_draft(
+            to_email=to_email,
+            subject=subject,
+            body_text=body_text,
+            attachment_path=attachment_path,
+            attachment_display_name=attachment_display_name,
+            cc=cc,
+            in_reply_to=in_reply_to,
+            references=references,
+        )
+    _load_dotenv()
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+
+    if not gmail_user or not gmail_password:
+        raise ValueError(
+            "GMAIL_USER or GMAIL_APP_PASSWORD is not set in .env. "
+            "Please configure your Gmail App Password first."
+        )
+
+    msg, to_email = build_mime_message(
+        to_email=to_email,
+        subject=subject,
+        body_text=body_text,
+        attachment_path=attachment_path,
+        attachment_display_name=attachment_display_name,
+        cc=cc,
+        in_reply_to=in_reply_to,
+        references=references,
+    )
 
     recipients = [to_email]
     if cc:

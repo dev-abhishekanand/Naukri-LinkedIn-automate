@@ -1,19 +1,13 @@
 """
-Generates free-text screening answers using Google's free-tier Gemini API,
-via the current `google-genai` SDK (the old `google-generativeai` package is
-retired and will 404).
-
-Get a free key at https://aistudio.google.com/apikey (no card required for the
-free tier as of writing -- check current limits there, they change).
-Set it as an environment variable before running:
-    export GEMINI_API_KEY="your-key-here"
+Generates free-text screening answers and multimodal evaluations using Google's free-tier Gemini API,
+via the current `google-genai` SDK.
 """
 import os
 from pathlib import Path
 from google import genai
 from google.genai import types
 
-MODEL = "gemini-flash-latest"  # alias, always points at the current free-tier Flash model
+MODEL = "models/gemini-3.5-flash"
 
 _SYSTEM_INSTRUCTIONS = """\
 You are drafting a short answer to a job-application screening question, in the
@@ -30,10 +24,9 @@ voice of the real applicant described below. Rules, no exceptions:
    themselves -- not marketing copy.
 """
 
+
 def _load_dotenv_key():
-    """Reads GEMINI_API_KEY out of a local .env file if the environment
-    variable isn't already set. Looks in the project root (two levels up
-    from this file: common/gemini.py -> project root)."""
+    """Reads GEMINI_API_KEY out of a local .env file if the environment variable isn't already set."""
     if os.environ.get("GEMINI_API_KEY"):
         return
     env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -59,19 +52,42 @@ def _get_client():
         key = os.environ.get("GEMINI_API_KEY")
         if not key:
             raise RuntimeError(
-                "GEMINI_API_KEY is not set. Either run "
-                "$env:GEMINI_API_KEY=\"your-key\" in PowerShell, or create a .env "
-                "file in the project folder (copy .env.example) with your key in it. "
-                "Get a free key at https://aistudio.google.com/apikey"
+                "GEMINI_API_KEY is not set. Please set GEMINI_API_KEY in your .env file."
             )
         _client = genai.Client(api_key=key)
     return _client
 
 
-def draft_answer(question: str, profile_data: dict, job_context: str = "") -> str:
-    """Returns a drafted answer, or a string starting with [NEEDS_HUMAN_INPUT: ...]
-    if the profile doesn't actually cover what's being asked."""
+def generate_content(prompt: str, system_instruction: str = None) -> str:
+    """Generates text content using Gemini."""
     client = _get_client()
+    config = types.GenerateContentConfig(system_instruction=system_instruction) if system_instruction else None
+    resp = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=config,
+    )
+    return resp.text.strip()
+
+
+def generate_multimodal(prompt: str, image_bytes: bytes, mime_type: str = "image/png", system_instruction: str = None) -> str:
+    """Generates text content from image and prompt using Gemini Multimodal."""
+    client = _get_client()
+    contents = [
+        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+        prompt,
+    ]
+    config = types.GenerateContentConfig(system_instruction=system_instruction) if system_instruction else None
+    resp = client.models.generate_content(
+        model=MODEL,
+        contents=contents,
+        config=config,
+    )
+    return resp.text.strip()
+
+
+def draft_answer(question: str, profile_data: dict, job_context: str = "") -> str:
+    """Returns a drafted answer, or a string starting with [NEEDS_HUMAN_INPUT: ...]"""
     prompt = f"""
 APPLICANT PROFILE:
 {profile_data}
@@ -84,11 +100,4 @@ SCREENING QUESTION:
 
 Draft the answer now.
 """
-    resp = client.models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=_SYSTEM_INSTRUCTIONS,
-        ),
-    )
-    return resp.text.strip()
+    return generate_content(prompt, system_instruction=_SYSTEM_INSTRUCTIONS)

@@ -4,12 +4,13 @@ import subprocess
 from pathlib import Path
 import sys
 from playwright.sync_api import sync_playwright
+from common.browser_factory import launch_chrome_browser
 
 
 def _render_html_to_pdf(html_path: str, pdf_path: str):
     """Subprocess renderer to avoid Playwright sync loop conflicts."""
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = launch_chrome_browser(p, headless=True)
         page = browser.new_page()
         page.goto(f"file://{html_path}")
         page.pdf(

@@ -1,0 +1,29 @@
+{
+  "name": "Naukri & LinkedIn Automation Cloud",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "forwardPorts": [8585, 6080],
+  "portsAttributes": {
+    "8585": {
+      "label": "AI Automation Dashboard",
+      "onAutoForward": "openBrowser"
+    },
+    "6080": {
+      "label": "Live Browser Stream (noVNC)",
+      "onAutoForward": "silent"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+      },
+      "extensions": [
+        "ms-python.python"
+      ]
+    }
+  },
+  "postStartCommand": "/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &"
+}
