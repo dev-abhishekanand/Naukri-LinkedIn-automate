@@ -18,6 +18,7 @@ import sys
 import time
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from common.browser_factory import launch_chrome_browser
 
 from common.profile import Profile
 
@@ -131,7 +132,7 @@ def sync_linkedin_skills(profile: Profile, dry_run: bool = False, limit: int | N
     print(f"\n[LinkedIn Skills Sync] Starting synchronization for {len(skills_to_sync)} skills...")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=["--start-minimized"])
+        browser = launch_chrome_browser(p, browser_mode="minimized")
         context = browser.new_context(storage_state=str(session_path))
         page = context.new_page()
 

@@ -16,49 +16,14 @@
     <key>StandardErrorPath</key>
     <string>/Users/abhishekanand/Library/Logs/naukri_launchd.stderr.log</string>
 
+    <!-- Run every day (Monday to Sunday) at 09:00 AM IST -->
     <key>StartCalendarInterval</key>
-    <array>
-        <dict>
-            <key>Weekday</key>
-            <integer>1</integer>
-            <key>Hour</key>
-            <integer>9</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-        <dict>
-            <key>Weekday</key>
-            <integer>2</integer>
-            <key>Hour</key>
-            <integer>9</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-        <dict>
-            <key>Weekday</key>
-            <integer>3</integer>
-            <key>Hour</key>
-            <integer>9</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-        <dict>
-            <key>Weekday</key>
-            <integer>4</integer>
-            <key>Hour</key>
-            <integer>9</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-        <dict>
-            <key>Weekday</key>
-            <integer>5</integer>
-            <key>Hour</key>
-            <integer>9</integer>
-            <key>Minute</key>
-            <integer>0</integer>
-        </dict>
-    </array>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
 
     <key>RunAtLoad</key>
     <false/>

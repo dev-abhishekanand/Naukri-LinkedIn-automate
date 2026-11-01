@@ -35,6 +35,9 @@ import sys
 import time
 import yaml
 from playwright.sync_api import sync_playwright
+from common.browser_factory import launch_chrome_browser, create_stealth_context
+
+from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROFILE_YAML = os.path.join(BASE_DIR, "profile.yaml")
@@ -48,11 +51,12 @@ def log(msg):
     print(f"[{ts}] {msg}", flush=True)
 
 
-def load_config():
-    if not os.path.exists(PROFILE_YAML):
-        log(f"ERROR: profile.yaml not found at {PROFILE_YAML}")
+def load_config(path=None):
+    cfg_path = path or PROFILE_YAML
+    if not os.path.exists(cfg_path):
+        log(f"ERROR: profile YAML not found at {cfg_path}")
         sys.exit(1)
-    with open(PROFILE_YAML, "r", encoding="utf-8") as f:
+    with open(cfg_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -70,7 +74,14 @@ def scroll_page(page, times=6, step=700, delay=0.3):
 
 
 def close_modal(page):
-    page.keyboard.press("Escape")
+    try:
+        page.keyboard.press("Escape")
+        time.sleep(0.5)
+        cross = page.locator('.lightbox.model_open .crossIcon, .lightbox.model_open a.close, [aria-label="Close modal"]').first
+        if cross.count() > 0 and cross.is_visible():
+            cross.evaluate("el => el.click()")
+    except Exception:
+        pass
     time.sleep(1)
 
 
@@ -86,12 +97,17 @@ def sync_basic_details(page, config, dry_run=False):
 
     target_salary_str = lpa_to_rupees_str(target_lpa)
 
-    btn = page.locator('[aria-label="Edit basic details"]').first
+    btn = page.locator('[aria-label="Edit basic details"], .basic-details-container .editOneTheme, .basic-details-container span.edit').first
     if btn.count() == 0:
         log("WARN: Edit basic details button not found.")
         return
 
-    btn.click()
+    try:
+        btn.scroll_into_view_if_needed()
+        time.sleep(0.5)
+        btn.click(timeout=8000, force=True)
+    except Exception:
+        btn.evaluate("el => el.click()")
     time.sleep(2)
 
     ctc_inp = page.locator('#totalAbsCtc_id, input[aria-label="Current salary"]').first
@@ -125,7 +141,11 @@ def sync_basic_details(page, config, dry_run=False):
 
     try:
         with page.expect_response(lambda r: "resman-aggregator-services" in r.url, timeout=10000):
-            page.locator('#saveBasicDetailsBtn').click()
+            save_btn = page.locator('#saveBasicDetailsBtn')
+            try:
+                save_btn.click(timeout=8000, force=True)
+            except Exception:
+                save_btn.evaluate("el => el.click()")
         log(f"✓ Current CTC successfully updated to ₹{target_lpa} LPA ({target_salary_str})")
     except Exception as e:
         log(f"WARN: Error waiting for save response: {e}")
@@ -145,13 +165,22 @@ def sync_key_skills(page, config, dry_run=False):
         log("No naukri_key_skills in config. Skipping Key Skills.")
         return
 
-    scroll_page(page, times=3, step=500)
-    key_btn = page.locator('[aria-label="Edit key skills"]').first
+    try:
+        page.locator('div:has-text("Key skills"), section:has-text("Key skills")').last.scroll_into_view_if_needed()
+        time.sleep(1.5)
+    except Exception:
+        scroll_page(page, times=4, step=500)
+    key_btn = page.locator('[aria-label="Edit key skills"], #lazyKeySkills .editOneTheme, .keySkills .editOneTheme, .keySkills span.edit').first
     if key_btn.count() == 0:
         log("WARN: Edit key skills button not found.")
         return
 
-    key_btn.click()
+    try:
+        key_btn.scroll_into_view_if_needed()
+        time.sleep(0.5)
+        key_btn.click(timeout=8000, force=True)
+    except Exception:
+        key_btn.evaluate("el => el.click()")
     time.sleep(2)
 
     chips = page.locator('.chipsContainer .chip .tagTxt').all_inner_texts()
@@ -271,7 +300,11 @@ def sync_key_skills(page, config, dry_run=False):
     if added_count > 0 or removed_count > 0:
         try:
             with page.expect_response(lambda r: "resman-aggregator-services" in r.url or "keySkill" in r.url or "profile" in r.url, timeout=10000):
-                page.locator('#saveKeySkills').click()
+                save_btn = page.locator('#saveKeySkills')
+                try:
+                    save_btn.click(timeout=8000, force=True)
+                except Exception:
+                    save_btn.evaluate("el => el.click()")
             log(f"✓ Key Skills updated! Removed {removed_count} obsolete and added {added_count} new tags.")
         except Exception as e:
             log(f"WARN saving key skills: {e}")
@@ -293,12 +326,16 @@ def sync_it_skills(page, config, dry_run=False):
         return
 
     scroll_page(page, times=4, step=700)
+    time.sleep(1)
 
     # 1. Clean up bundled rows
-    it_widget = page.locator('#lazyITSkills, .itSkills').first
+    it_widget = page.locator('#lazyITSkills, .itSkills, li.collection-item:has-text("IT skills")').first
     if it_widget.count() == 0:
-        log("WARN: IT skills widget not found.")
+        log("WARN: IT skills section not found.")
         return
+
+    it_widget.scroll_into_view_if_needed()
+    time.sleep(0.5)
 
     existing_rows = page.evaluate("""() => {
         const rows = Array.from(document.querySelectorAll('#lazyITSkills li.collection, .itSkills li.collection'));
@@ -343,23 +380,31 @@ def sync_it_skills(page, config, dry_run=False):
                     log(f"  WARN: Delete button for '{b['name']}' not found.")
 
     # Re-read existing rows after deletion
-    existing_map = {}
-    current_table = page.evaluate("""() => {
-        const rows = Array.from(document.querySelectorAll('#lazyITSkills li.collection, .itSkills li.collection'));
-        return rows.map(r => {
-            const spans = Array.from(r.querySelectorAll('span'));
-            const editBtn = r.querySelector('[aria-label*="Edit IT skill"]');
-            return {
-                name: spans[0] ? spans[0].innerText.trim() : '',
-                version: spans[1] ? spans[1].innerText.trim() : '',
-                lastUsed: spans[2] ? spans[2].innerText.trim() : '',
-                exp: spans[3] ? spans[3].innerText.trim() : '',
-                ariaLabel: editBtn ? editBtn.getAttribute('aria-label') : null
-            };
-        });
-    }""")
-    for r in current_table:
-        existing_map[r["name"].lower()] = r
+    def get_existing_map():
+        current_table = page.evaluate("""() => {
+            const rows = Array.from(document.querySelectorAll('#lazyITSkills li.collection, .itSkills li.collection'));
+            return rows.map(r => {
+                const spans = Array.from(r.querySelectorAll('span'));
+                const editBtn = r.querySelector('[aria-label*="Edit IT skill"]');
+                return {
+                    name: spans[0] ? spans[0].innerText.trim() : '',
+                    version: spans[1] ? spans[1].innerText.trim() : '',
+                    lastUsed: spans[2] ? spans[2].innerText.trim() : '',
+                    exp: spans[3] ? spans[3].innerText.trim() : '',
+                    ariaLabel: editBtn ? editBtn.getAttribute('aria-label') : null
+                };
+            });
+        }""")
+        return {r["name"].lower(): r for r in current_table}
+
+    def match_existing(name, ex_map):
+        c_target = re.sub(r'[^a-z0-9]', '', name.lower())
+        for k, v in ex_map.items():
+            if re.sub(r'[^a-z0-9]', '', k.lower()) == c_target:
+                return v
+        return None
+
+    existing_map = get_existing_map()
 
     # Process each target skill
     for target in target_skills:
@@ -371,7 +416,7 @@ def sync_it_skills(page, config, dry_run=False):
         exp_yr_str = f"{exp_yr} Year" if exp_yr == 1 else f"{exp_yr} Years"
         exp_mo_str = f"{exp_mo} Month" if exp_mo == 1 else f"{exp_mo} Months"
 
-        existing = existing_map.get(skill_name.lower())
+        existing = match_existing(skill_name, existing_map)
 
         if existing:
             # Check if update is needed
@@ -381,7 +426,7 @@ def sync_it_skills(page, config, dry_run=False):
                 exp_yr_str not in existing["exp"]
             )
             if not needs_update:
-                log(f"✓ IT skill '{skill_name}' is up to date ({existing['exp']}, Last Used: {existing['lastUsed']}).")
+                log(f"✓ IT skill '{skill_name}' is already up to date ({existing['exp']}, Last Used: {existing['lastUsed']}).")
                 continue
 
             if dry_run:
@@ -392,7 +437,12 @@ def sync_it_skills(page, config, dry_run=False):
             edit_btn = page.locator(f'[aria-label="{existing["ariaLabel"]}"]').first
             if edit_btn.count() == 0:
                 continue
-            edit_btn.click()
+            try:
+                edit_btn.scroll_into_view_if_needed()
+                time.sleep(0.3)
+                edit_btn.click(timeout=8000, force=True)
+            except Exception:
+                edit_btn.evaluate("el => el.click()")
             time.sleep(2)
         else:
             if dry_run:
@@ -400,7 +450,7 @@ def sync_it_skills(page, config, dry_run=False):
                 continue
 
             log(f"Adding new IT skill '{skill_name}'...")
-            add_btn = page.locator('#lazyITSkills span[aria-label="Add IT skills"], #lazyITSkills .add:has-text("Add details")').first
+            add_btn = page.locator('#lazyITSkills [aria-label="Add IT skills"], #lazyITSkills .add, li.collection-item:has-text("IT skills") a, [aria-label="Add IT skills"]').first
             if add_btn.count() == 0:
                 log("WARN: Add IT skills button not found.")
                 continue
@@ -412,14 +462,33 @@ def sync_it_skills(page, config, dry_run=False):
                 add_btn.click(force=True)
             time.sleep(2)
 
-            # Fill name
+            # Fill name in suggestor
             s_inp = page.locator('#itSkillSugg')
             s_inp.click()
-            s_inp.press_sequentially(skill_name, delay=80)
-            time.sleep(1)
-            sug_item = page.locator(f'#sugLst_itSkillSugg li:has-text("{skill_name}")').first
-            if sug_item.count() > 0:
-                sug_item.click()
+            s_inp.fill("")
+            time.sleep(0.2)
+            s_inp.press_sequentially(skill_name, delay=60)
+            time.sleep(1.0)
+
+            sug_items = page.locator('#sugLst_itSkillSugg li')
+            matched_sug = None
+            if sug_items.count() > 0:
+                for s_idx in range(sug_items.count()):
+                    stxt = sug_items.nth(s_idx).inner_text().strip()
+                    if stxt.lower() == skill_name.strip().lower():
+                        matched_sug = sug_items.nth(s_idx)
+                        break
+                if not matched_sug:
+                    for s_idx in range(sug_items.count()):
+                        stxt = sug_items.nth(s_idx).inner_text().strip()
+                        if skill_name.strip().lower() in stxt.lower():
+                            matched_sug = sug_items.nth(s_idx)
+                            break
+                if not matched_sug:
+                    matched_sug = sug_items.first
+
+            if matched_sug:
+                matched_sug.click()
             else:
                 page.keyboard.press("Enter")
             time.sleep(0.5)
@@ -439,7 +508,9 @@ def sync_it_skills(page, config, dry_run=False):
             lu_inp = page.locator('#lastUsedDroopeFor')
             lu_inp.click()
             time.sleep(0.4)
-            page.locator(f'#dp_lastUsedDroope li:has-text("{last_used}")').first.click()
+            lu_opt = page.locator(f'#ddopt_lastUsedDroope_{last_used}, #dp_lastUsedDroope li:has-text("{last_used}")').first
+            if lu_opt.count() > 0:
+                lu_opt.click()
             time.sleep(0.3)
         except Exception as e:
             log(f"  WARN setting last used for '{skill_name}': {e}")
@@ -449,7 +520,9 @@ def sync_it_skills(page, config, dry_run=False):
             ey_inp = page.locator('#expYearDroopeFor')
             ey_inp.click()
             time.sleep(0.4)
-            page.locator(f'#dp_expYearDroope li:has-text("{exp_yr_str}")').first.click()
+            ey_opt = page.locator(f'#ddopt_expYearDroope_{exp_yr}, #dp_expYearDroope li:has-text("{exp_yr_str}")').first
+            if ey_opt.count() > 0:
+                ey_opt.click()
             time.sleep(0.3)
         except Exception as e:
             log(f"  WARN setting exp years for '{skill_name}': {e}")
@@ -459,16 +532,29 @@ def sync_it_skills(page, config, dry_run=False):
             em_inp = page.locator('#expMonthDroopeFor')
             em_inp.click()
             time.sleep(0.4)
-            page.locator(f'#dp_expMonthDroope li:has-text("{exp_mo_str}")').first.click()
+            em_opt = page.locator(f'#ddopt_expMonthDroope_{exp_mo}, #dp_expMonthDroope li:has-text("{exp_mo_str}")').first
+            if em_opt.count() > 0:
+                em_opt.click()
             time.sleep(0.3)
         except Exception as e:
             log(f"  WARN setting exp months for '{skill_name}': {e}")
 
         # Save
-        page.locator('#saveITSkills').click()
+        save_btn = page.locator('#saveITSkills')
+        try:
+            save_btn.evaluate("el => el.click()")
+        except Exception:
+            save_btn.click(timeout=8000, force=True)
         time.sleep(2.5)
         close_modal(page)
         log(f"  ✓ Saved IT skill: {skill_name}")
+
+        # Refresh existing rows map
+        existing_map = get_existing_map()
+        it_sec = page.locator('#lazyITSkills')
+        if it_sec.count() > 0:
+            it_sec.scroll_into_view_if_needed()
+        time.sleep(0.5)
 
     log("✓ IT Skills table synchronization complete.")
 
@@ -485,13 +571,19 @@ def sync_career_profile(page, config, dry_run=False):
 
     target_salary_str = lpa_to_rupees_str(target_lpa)
 
-    scroll_page(page, times=6, step=700)
-    career_btn = page.locator('[aria-label="Edit career profile"]').first
+    scroll_page(page, times=8, step=700)
+    time.sleep(1)
+    career_btn = page.locator('[aria-label="Edit career profile"], #lazyDesiredProfile .editOneTheme, #lazyDesiredProfile span.edit, .careerProfile .editOneTheme, div.widgetHead:has-text("Career profile") span.editOneTheme, div.widgetHead:has-text("Career profile") span.edit').first
     if career_btn.count() == 0:
         log("WARN: Edit career profile button not found.")
         return
 
-    career_btn.click()
+    try:
+        career_btn.scroll_into_view_if_needed()
+        time.sleep(0.5)
+        career_btn.click(timeout=8000, force=True)
+    except Exception:
+        career_btn.evaluate("el => el.click()")
     time.sleep(2)
 
     pref_salary = page.locator('form[name="desiredProfileForm"] input[aria-label="Preferred annual salary"], form[name="desiredProfileForm"] input.currency-input').first
@@ -525,7 +617,11 @@ def sync_career_profile(page, config, dry_run=False):
 
     try:
         with page.expect_response(lambda r: "resman-aggregator-services" in r.url or "desired" in r.url or "profile" in r.url, timeout=10000):
-            page.locator('#saveDesiredProfile').click()
+            save_btn = page.locator('#saveDesiredProfile')
+            try:
+                save_btn.click(timeout=8000, force=True)
+            except Exception:
+                save_btn.evaluate("el => el.click()")
         log(f"✓ Preferred CTC successfully updated to ₹{target_lpa} LPA ({target_salary_str})")
     except Exception as e:
         log(f"WARN saving career profile: {e}")
@@ -615,13 +711,187 @@ def sync_work_sample(page, config, dry_run=False):
 
 
 # ----------------------------------------------------------------------
+# 6. RESUME UPLOAD SYNC
+# ----------------------------------------------------------------------
+def sync_resume_upload(page, config, dry_run=False):
+    log("Checking Resume Upload...")
+    res_name = config.get("resume_file_name", "Abhishek_Anand_Resume.docx")
+    res_path = Path(BASE_DIR) / res_name
+    if not res_path.exists():
+        res_path = Path(BASE_DIR) / "Abhishek_Anand_Resume.docx"
+    if not res_path.exists():
+        log(f"WARN: Resume file not found at {res_path}")
+        return
+
+    inp = page.locator('#attachCV').first
+    if inp.count() == 0:
+        log("WARN: Resume upload input #attachCV not found.")
+        return
+
+    if dry_run:
+        log(f"[DRY-RUN] Would upload resume from '{res_path.name}'")
+        return
+
+    log(f"Uploading '{res_path.name}' via #attachCV...")
+    inp.set_input_files(str(res_path))
+    time.sleep(5)
+    log(f"✓ Resume successfully uploaded ({res_path.name})")
+
+
+# ----------------------------------------------------------------------
+# 7. RESUME HEADLINE SYNC
+# ----------------------------------------------------------------------
+def sync_headline(page, config, dry_run=False):
+    log("Checking Resume Headline...")
+    pool = config.get("naukri_headline_pool", [])
+    if not pool:
+        log("No naukri_headline_pool in config. Skipping headline.")
+        return
+
+    weekday = datetime.datetime.now().weekday()
+    target_headline = pool[weekday % len(pool)].strip()
+
+    # 1. Read current headline from the page DOM first
+    current_headline = ""
+    try:
+        headline_el = page.locator('.resumeHeadline .widgetCont .prefill, .resumeHeadline .prefill').first
+        if headline_el.count() > 0:
+            current_headline = headline_el.inner_text().strip()
+    except Exception as e:
+        log(f"Warning reading current headline: {e}")
+
+    log(f"Current Headline on portal: '{current_headline}'")
+    log(f"Target Headline: '{target_headline}'")
+
+    if current_headline == target_headline:
+        log("✓ Resume headline already matches target.")
+        return
+
+    if dry_run:
+        log(f"[DRY-RUN] Would update headline to: '{target_headline}'")
+        return
+
+    # Use the precise selectors proven by naukri_update_headline.py
+    btn = page.locator('.resumeHeadline .widgetHead span.edit, .resumeHeadline .editOneTheme, [aria-label="Edit resume headline"]').first
+    if btn.count() == 0:
+        log("WARN: Edit resume headline button not found.")
+        return
+
+    try:
+        btn.scroll_into_view_if_needed()
+        time.sleep(0.5)
+        btn.click(timeout=8000, force=True)
+    except Exception:
+        btn.evaluate("el => el.click()")
+
+    time.sleep(2)
+    textarea = page.locator('textarea#resumeHeadlineTxt, form[name="resumeHeadlineForm"] textarea, textarea.resumeHeadlineTxt').first
+    if textarea.count() == 0:
+        log("WARN: Headline textarea not found.")
+        close_modal(page)
+        return
+
+    textarea.fill("")
+    textarea.fill(target_headline[:250])
+    time.sleep(1)
+
+    save_btn = page.locator('form[name="resumeHeadlineForm"] button[type="submit"], button:has-text("Save"), #saveHeadlineBtn').first
+    if save_btn.count() > 0:
+        try:
+            save_btn.click(timeout=8000, force=True)
+        except Exception:
+            save_btn.evaluate("el => el.click()")
+        log(f"✓ Resume headline updated to: '{target_headline[:80]}...'")
+
+    time.sleep(2)
+    close_modal(page)
+
+
+# ----------------------------------------------------------------------
+# 8. PROFILE SUMMARY SYNC
+# ----------------------------------------------------------------------
+def sync_profile_summary(page, config, dry_run=False):
+    log("Checking Profile summary...")
+    summary_text = (config.get("work_history_narrative") or "").strip()
+    if not summary_text:
+        log("No work_history_narrative in config. Skipping Profile summary.")
+        return
+
+    scroll_page(page, times=7, step=700)
+    time.sleep(1)
+
+    # Check current profile summary text first
+    current_summary = ""
+    try:
+        summary_el = page.locator('#lazyProfileSummary .widgetCont, .profileSummary .widgetCont, #lazyProfileSummary .prefill').first
+        if summary_el.count() > 0:
+            current_summary = summary_el.inner_text().strip()
+    except Exception:
+        pass
+
+    if summary_text in current_summary or (current_summary and current_summary.startswith(summary_text[:100])):
+        log("✓ Profile summary already matches target narrative.")
+        return
+
+    btn = page.locator('[aria-label="Edit profile summary"], #lazyProfileSummary .editOneTheme, #lazyProfileSummary span.edit, .profileSummary .editOneTheme, div.widgetHead:has-text("Profile summary") span.editOneTheme, div.widgetHead:has-text("Profile summary") span.edit').first
+    if btn.count() == 0:
+        log("WARN: Edit profile summary button not found.")
+        return
+
+    try:
+        btn.scroll_into_view_if_needed()
+        time.sleep(0.5)
+        btn.click(timeout=8000, force=True)
+    except Exception:
+        btn.evaluate("el => el.click()")
+
+    time.sleep(2)
+    textarea = page.locator('#profileSummaryTxt, #profileSummary, textarea[placeholder*="summary"]').first
+    if textarea.count() == 0:
+        log("WARN: Profile summary textarea not found.")
+        close_modal(page)
+        return
+
+    curr_val = textarea.input_value().strip()
+    if curr_val == summary_text:
+        log("✓ Profile summary already matches target.")
+        close_modal(page)
+        return
+
+    if dry_run:
+        log(f"[DRY-RUN] Would update profile summary.")
+        close_modal(page)
+        return
+
+    textarea.fill("")
+    textarea.fill(summary_text)
+    time.sleep(1)
+
+    save_btn = page.locator('button:has-text("Save"), #saveProfileSummaryBtn').first
+    if save_btn.count() > 0:
+        try:
+            save_btn.click(timeout=8000, force=True)
+        except Exception:
+            save_btn.evaluate("el => el.click()")
+        log("✓ Profile summary successfully updated!")
+
+    time.sleep(2)
+    close_modal(page)
+
+
+# ----------------------------------------------------------------------
 # MAIN CONTROLLER
 # ----------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="Synchronize profile.yaml with Naukri Portal")
     parser.add_argument("--dry-run", action="store_true", help="Inspect profile and report diff without saving changes")
-    parser.add_argument("--section", choices=["all", "salary", "key_skills", "it_skills", "work_sample"], default="all", help="Target section to sync")
+    parser.add_argument("--section", choices=["all", "overhaul", "salary", "key_skills", "it_skills", "work_sample", "headline", "resume", "summary"], default="all", help="Target section to sync")
+    parser.add_argument("--session", default=None, help="Path to session JSON file (default: session_naukri.json)")
+    parser.add_argument("--profile", default=None, help="Path to profile YAML file (default: profile.yaml)")
     args = parser.parse_args()
+
+    session_file = args.session or SESSION_FILE
+    profile_path = args.profile or PROFILE_YAML
 
     os.makedirs(LOG_DIR, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -629,18 +899,20 @@ def main():
 
     log("=" * 60)
     log(f"NAUKRI PROFILE SYNC STARTED [Mode: {'DRY-RUN' if args.dry_run else 'LIVE'}]")
+    log(f"Profile Config: {profile_path}")
+    log(f"Session File:   {session_file}")
     log(f"Target Section: {args.section}")
     log("=" * 60)
 
-    config = load_config()
+    config = load_config(profile_path)
 
-    if not os.path.exists(SESSION_FILE):
-        log(f"ERROR: Session file not found at {SESSION_FILE}. Run login_capture.py first.")
+    if not os.path.exists(session_file):
+        log(f"ERROR: Session file not found at {session_file}. Run login_capture.py first.")
         sys.exit(1)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=["--start-minimized"])
-        context = browser.new_context(storage_state=SESSION_FILE)
+        browser = launch_chrome_browser(p, browser_mode="minimized")
+        context = create_stealth_context(browser, storage_state=session_file)
         page = context.new_page()
 
         try:
@@ -653,25 +925,69 @@ def main():
                 log("ERROR: Session expired. Redirected to login page.")
                 sys.exit(1)
 
-            # Execute sections according to filter
-            if args.section in ["all", "salary"]:
-                sync_basic_details(page, config, dry_run=args.dry_run)
-                sync_career_profile(page, config, dry_run=args.dry_run)
-                page.goto(PROFILE_URL, wait_until="load", timeout=60000)
-                time.sleep(2)
+            # 1. Resume Upload
+            if args.section in ["all", "overhaul", "resume"]:
+                try:
+                    sync_resume_upload(page, config, dry_run=args.dry_run)
+                    page.goto(PROFILE_URL, wait_until="load", timeout=60000)
+                    time.sleep(2)
+                except Exception as e:
+                    log(f"WARN in resume upload step: {e}")
 
-            if args.section in ["all", "key_skills"]:
-                sync_key_skills(page, config, dry_run=args.dry_run)
-                page.goto(PROFILE_URL, wait_until="load", timeout=60000)
-                time.sleep(2)
+            # 2. Resume Headline
+            if args.section in ["all", "overhaul", "headline"]:
+                try:
+                    sync_headline(page, config, dry_run=args.dry_run)
+                    page.goto(PROFILE_URL, wait_until="load", timeout=60000)
+                    time.sleep(2)
+                except Exception as e:
+                    log(f"WARN in headline step: {e}")
 
-            if args.section in ["all", "it_skills"]:
-                sync_it_skills(page, config, dry_run=args.dry_run)
-                page.goto(PROFILE_URL, wait_until="load", timeout=60000)
-                time.sleep(2)
+            # 3. Profile Summary
+            if args.section in ["all", "overhaul", "summary"]:
+                try:
+                    sync_profile_summary(page, config, dry_run=args.dry_run)
+                    page.goto(PROFILE_URL, wait_until="load", timeout=60000)
+                    time.sleep(2)
+                except Exception as e:
+                    log(f"WARN in summary step: {e}")
 
-            if args.section in ["all", "work_sample"]:
-                sync_work_sample(page, config, dry_run=args.dry_run)
+            # 4. Salary & Career Profile
+            if args.section in ["all", "overhaul", "salary"]:
+                try:
+                    sync_basic_details(page, config, dry_run=args.dry_run)
+                    page.goto(PROFILE_URL, wait_until="load", timeout=60000)
+                    time.sleep(2)
+                    sync_career_profile(page, config, dry_run=args.dry_run)
+                    page.goto(PROFILE_URL, wait_until="load", timeout=60000)
+                    time.sleep(2)
+                except Exception as e:
+                    log(f"WARN in salary & career profile step: {e}")
+
+            # 5. Key Skills (30 tags)
+            if args.section in ["all", "overhaul", "key_skills"]:
+                try:
+                    sync_key_skills(page, config, dry_run=args.dry_run)
+                    page.goto(PROFILE_URL, wait_until="load", timeout=60000)
+                    time.sleep(2)
+                except Exception as e:
+                    log(f"WARN in key skills step: {e}")
+
+            # 6. IT Skills Matrix (2026 recency)
+            if args.section in ["all", "overhaul", "it_skills"]:
+                try:
+                    sync_it_skills(page, config, dry_run=args.dry_run)
+                    page.goto(PROFILE_URL, wait_until="load", timeout=60000)
+                    time.sleep(2)
+                except Exception as e:
+                    log(f"WARN in IT skills matrix step: {e}")
+
+            # 7. Work Sample
+            if args.section in ["all", "overhaul", "work_sample"]:
+                try:
+                    sync_work_sample(page, config, dry_run=args.dry_run)
+                except Exception as e:
+                    log(f"WARN in work sample step: {e}")
 
             log("=" * 60)
             log(f"PROFILE SYNC COMPLETED SUCCESSFULLY [{'DRY-RUN ONLY' if args.dry_run else 'LIVE CHANGES COMMITTED'}]")

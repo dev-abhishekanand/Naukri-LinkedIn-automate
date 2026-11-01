@@ -20,6 +20,7 @@ import sys
 import time
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from common.browser_factory import launch_chrome_browser, create_stealth_context
 
 from common.profile import Profile
 
@@ -40,10 +41,10 @@ def log_row(row: list):
         w.writerow(row)
 
 
-def refresh_naukri_resume(profile: Profile, dry_run: bool = False) -> bool:
-    session_path = Path(SESSION_FILE)
+def refresh_naukri_resume(profile: Profile, session_filename: str = SESSION_FILE, account_label: str = "primary", dry_run: bool = False) -> bool:
+    session_path = Path(session_filename)
     if not session_path.is_absolute():
-        session_path = Path(__file__).resolve().parent / SESSION_FILE
+        session_path = Path(__file__).resolve().parent / session_filename
 
     if not session_path.exists():
         print(f"ERROR: Session file not found: {session_path}")
@@ -63,24 +64,18 @@ def refresh_naukri_resume(profile: Profile, dry_run: bool = False) -> bool:
         print("Ensure the file exists in the project root matching resume_file_name.")
         return False
 
-    print(f"Target resume to upload: {resume_path.name} ({resume_path.stat().st_size} bytes)")
+    print(f"[{account_label.upper()}] Target resume to upload: {resume_path.name} ({resume_path.stat().st_size} bytes)")
 
     with sync_playwright() as p:
         browser_mode = profile.data.get("browser_mode", "minimized")
-        if browser_mode == "headless":
-            browser = p.chromium.launch(headless=True)
-        elif browser_mode == "minimized":
-            browser = p.chromium.launch(headless=False, args=["--start-minimized"])
-        else:
-            browser = p.chromium.launch(headless=False)
-
-        context = browser.new_context(storage_state=str(session_path))
+        browser = launch_chrome_browser(p, browser_mode=browser_mode)
+        context = create_stealth_context(browser, storage_state=session_path)
         page = context.new_page()
 
         print(f"Navigating to {PROFILE_URL}...")
         try:
-            page.goto(PROFILE_URL, wait_until="load", timeout=60000)
-            page.wait_for_selector(RESUME_NAME_SELECTOR, timeout=20000)
+            page.goto(PROFILE_URL, wait_until="domcontentloaded", timeout=45000)
+            page.wait_for_selector(RESUME_NAME_SELECTOR, timeout=25000)
         except PWTimeout:
             print("ERROR: Timeout loading Naukri profile page or locating resume section.")
             print("Check that session_naukri.json is valid.")
@@ -137,10 +132,10 @@ def refresh_naukri_resume(profile: Profile, dry_run: bool = False) -> bool:
         print(f"Verified resume on profile: '{updated_name}' | Timestamp: '{upload_date_str}'")
 
         if updated_name:
-            print("SUCCESS: Resume successfully refreshed on Naukri portal!")
+            print(f"SUCCESS: Resume successfully refreshed on Naukri portal ({account_label})!")
             log_row([
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "naukri",
+                f"naukri ({account_label})",
                 "Resume Refresh",
                 "Naukri Profile",
                 "updated",
@@ -156,12 +151,15 @@ def refresh_naukri_resume(profile: Profile, dry_run: bool = False) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description="Re-upload resume to Naukri to maintain profile freshness.")
+    parser.add_argument("--session", default=SESSION_FILE, help="Path to Naukri session JSON")
+    parser.add_argument("--profile", default="profile.yaml", help="Path to profile YAML file")
+    parser.add_argument("--account", default="primary", choices=["primary", "secondary"], help="Account label")
     parser.add_argument("--dry-run", action="store_true", help="Preview action without uploading")
     parser.add_argument("--unattended", action="store_true", help="Run in non-interactive unattended mode")
     args = parser.parse_args()
 
-    profile = Profile.load()
-    success = refresh_naukri_resume(profile, dry_run=args.dry_run)
+    profile = Profile.load(args.profile)
+    success = refresh_naukri_resume(profile, session_filename=args.session, account_label=args.account, dry_run=args.dry_run)
     sys.exit(0 if success else 1)
 
 

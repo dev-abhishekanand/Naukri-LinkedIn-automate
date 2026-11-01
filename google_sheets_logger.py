@@ -1,5 +1,8 @@
-from datetime import datetime
+from datetime import datetime, date
 import os
+import csv
+import re
+import time
 from pathlib import Path
 
 import gspread
@@ -264,9 +267,9 @@ def append_applied_job(card: dict):
         card.get("href", ""),
         "APPLIED",
         card.get("notes", "Application submission verified"),
-        "",
-        "",
-        "",
+        card.get("jd_keywords", ""),
+        card.get("missing_keywords", ""),
+        card.get("tailored_resume_path", ""),
     ]
     return _append_job_row(sheet, job_values, card.get("discovered_at"))
 
@@ -466,6 +469,187 @@ def append_interview_prep(entry: dict) -> bool:
     return True
 
 
+def make_hyperlink_formula(url: str, label: str = None) -> str:
+    """Formats a URL string as a Google Sheets =HYPERLINK formula so it is clickable."""
+    if not url or not str(url).strip().startswith("http"):
+        return url or ""
+    clean = str(url).strip()
+    escaped = clean.replace('"', '""')
+    display_label = label.replace('"', '""') if label else escaped
+    return f'=HYPERLINK("{escaped}", "{display_label}")'
+
+
+def format_cell_rich_text_links(spreadsheet, sheet_id: int, row_index_0: int, col_index_0: int, text: str):
+    """Applies clickable hyperlink formatting to any URLs embedded inside a multiline text cell."""
+    if not text:
+        return
+    matches = list(re.finditer(r'(https?://[^\s\)\"]+)', text))
+    if not matches:
+        return
+    runs = [{'startIndex': 0, 'format': {}}]
+    for match in matches:
+        u = match.group(1).rstrip(".,;")
+        start = match.start(1)
+        end = start + len(u)
+        runs.append({
+            'startIndex': start,
+            'format': {
+                'link': {'uri': u},
+                'underline': True,
+                'foregroundColor': {'blue': 0.8, 'red': 0.05, 'green': 0.2}
+            }
+        })
+        runs.append({
+            'startIndex': end,
+            'format': {
+                'underline': False,
+                'foregroundColor': {'blue': 0.0, 'red': 0.0, 'green': 0.0}
+            }
+        })
+    try:
+        req = {
+            'updateCells': {
+                'range': {
+                    'sheetId': sheet_id,
+                    'startRowIndex': row_index_0,
+                    'endRowIndex': row_index_0 + 1,
+                    'startColumnIndex': col_index_0,
+                    'endColumnIndex': col_index_0 + 1
+                },
+                'rows': [{
+                    'values': [{
+                        'userEnteredValue': {'stringValue': text},
+                        'textFormatRuns': runs
+                    }]
+                }],
+                'fields': 'userEnteredValue,textFormatRuns'
+            }
+        }
+        spreadsheet.batch_update({'requests': [req]})
+    except Exception as e:
+        print(f"Note: rich text link formatting: {e}")
+
+
+LINKEDIN_REFERRAL_HEADERS = [
+    "Date Requested", "Company", "Role", "Job / Posting Link",
+    "Referrer Name", "Referrer Title", "Channel", "Status", "Message Preview"
+]
+
+
+def append_referral_request(data: dict) -> bool:
+    """Appends a referral request row to 'LinkedIn Referral Requests' with active clickable hyperlinks."""
+    try:
+        ss = _get_spreadsheet()
+        sheet = ss.worksheet("LinkedIn Referral Requests")
+        
+        job_url = data.get("job_url") or data.get("posting_link") or data.get("profile_url") or ""
+        job_link_val = make_hyperlink_formula(job_url)
+        message_text = data.get("message") or data.get("message_preview") or ""
+        
+        channel = data.get("channel") or data.get("type", "Connection Request With Note")
+        if channel == "CONNECTION_REQUEST_WITH_NOTE":
+            channel = "LinkedIn Connection Note"
+        elif channel == "DIRECT_MESSAGE":
+            channel = "LinkedIn Direct Message"
+            
+        row_values = [
+            data.get("timestamp") or datetime.now().strftime("%d-%m-%Y %H:%M"),
+            data.get("company", ""),
+            data.get("role") or data.get("job_title", ""),
+            job_link_val,
+            data.get("name") or data.get("referrer_name", ""),
+            data.get("headline") or data.get("referrer_title", "Software Engineer / Tech Lead"),
+            channel,
+            data.get("status", "SENT"),
+            message_text,
+        ]
+        
+        sheet.append_row(row_values, value_input_option="USER_ENTERED")
+        
+        # If message preview has an embedded URL, format it as a clickable rich-text link
+        if message_text and ("http://" in message_text or "https://" in message_text):
+            try:
+                row_count = len(sheet.get_all_values())
+                format_cell_rich_text_links(ss, sheet.id, row_count - 1, 8, message_text)
+            except Exception:
+                pass
+                
+        print(f"✓ Logged referral request to Google Sheets: {data.get('name')} for {data.get('role')} @ {data.get('company')}")
+        return True
+    except Exception as e:
+        print(f"Warning: Failed to log referral request to Google Sheets: {e}")
+        return False
+
+
+LINKEDIN_HIRINGS_HEADERS = [
+    "Date Added", "Target Role", "Recruiter / Poster", "Headline / Company",
+    "HR Email", "Phone Number", "Post Link", "Outreach Status",
+    "Notes / Outreach Subject", "Job / Post Content Preview"
+]
+
+
+def append_linkedin_hiring_lead(data: dict) -> bool:
+    """Appends a discovered hiring post/lead to 'LinkedIn Hirings & Leads' with clickable links."""
+    try:
+        ss = _get_spreadsheet()
+        sheet = ss.worksheet("LinkedIn Hirings & Leads")
+        
+        post_url = data.get("post_url") or data.get("href") or ""
+        post_link_val = make_hyperlink_formula(post_url)
+        content_text = data.get("content_preview") or data.get("notes") or ""
+        
+        row_values = [
+            data.get("discovered_at") or datetime.now().strftime("%d-%m-%Y %H:%M"),
+            data.get("role", "React Developer"),
+            data.get("author") or data.get("poster", ""),
+            data.get("headline") or data.get("company", ""),
+            data.get("recipient_email", ""),
+            data.get("phone", ""),
+            post_link_val,
+            data.get("status", "LEAD_DISCOVERED"),
+            data.get("notes", ""),
+            content_text,
+        ]
+        
+        sheet.append_row(row_values, value_input_option="USER_ENTERED")
+        if content_text and ("http://" in content_text or "https://" in content_text):
+            try:
+                row_count = len(sheet.get_all_values())
+                format_cell_rich_text_links(ss, sheet.id, row_count - 1, 9, content_text)
+            except Exception:
+                pass
+        return True
+    except Exception as e:
+        print(f"Warning: Failed to log hiring lead to Google Sheets: {e}")
+        return False
+
+
+def update_hiring_lead_status(identifier: str, new_status: str, notes: str = "") -> bool:
+    """Updates status and notes for a lead in 'LinkedIn Hirings & Leads' by URL or HR email."""
+    if not identifier:
+        return False
+    try:
+        ss = _get_spreadsheet()
+        sheet = ss.worksheet("LinkedIn Hirings & Leads")
+        rows = sheet.get_all_values()
+        if len(rows) <= 1:
+            return False
+        clean_id = identifier.strip().lower()
+        for idx, r in enumerate(rows[1:], start=2):
+            email_val = (r[4] if len(r) > 4 else "").strip().lower()
+            link_val = (r[6] if len(r) > 6 else "").strip().lower()
+            if clean_id in email_val or clean_id in link_val:
+                sheet.update_cell(idx, 8, new_status)  # Column H: Status
+                if notes:
+                    sheet.update_cell(idx, 9, notes)   # Column I: Notes
+                print(f"✓ Updated LinkedIn hiring lead ({identifier}) -> {new_status}")
+                return True
+        return False
+    except Exception as e:
+        print(f"Warning: Failed to update hiring lead status in Google Sheets: {e}")
+        return False
+
+
 def interview_post_url_exists(post_url: str) -> bool:
     """Checks if a LinkedIn interview post URL is already recorded."""
     if not post_url:
@@ -482,4 +666,462 @@ def interview_post_url_exists(post_url: str) -> bool:
         return False
     except Exception:
         return False
+
+
+# ==============================================================================
+# DAILY APPLY METRICS (TAB: "Daily Apply Metrics")
+# Tracks daily aggregates: Naukri Direct, LinkedIn Direct, External, Cold Emails
+# ==============================================================================
+
+DAILY_METRICS_SHEET_TITLE = "Daily Apply Metrics"
+
+DAILY_METRICS_HEADERS = [
+    "Date",
+    "Naukri Direct Applied",
+    "LinkedIn Direct Applied",
+    "Total Direct Applied",
+    "Naukri External / Tailored",
+    "LinkedIn External / Manual",
+    "Total External Logged",
+    "Grand Total Processed",
+    "Cold Outreach Emails",
+    "Execution Status / Notes",
+]
+
+DAILY_HEADER_FORMAT = {
+    "backgroundColor": {"red": 0.05, "green": 0.17, "blue": 0.45},  # Deep Navy Blue
+    "textFormat": {
+        "bold": True,
+        "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},  # White
+        "fontSize": 10,
+    },
+    "horizontalAlignment": "CENTER",
+    "verticalAlignment": "MIDDLE",
+}
+
+TOTAL_DIRECT_FORMAT = {
+    "backgroundColor": {"red": 0.90, "green": 0.96, "blue": 0.90},  # Soft mint green
+    "textFormat": {"bold": True, "foregroundColor": {"red": 0.10, "green": 0.40, "blue": 0.15}},
+    "horizontalAlignment": "CENTER",
+}
+
+GRAND_TOTAL_FORMAT = {
+    "backgroundColor": {"red": 0.88, "green": 0.92, "blue": 0.99},  # Soft executive blue
+    "textFormat": {"bold": True, "foregroundColor": {"red": 0.05, "green": 0.20, "blue": 0.50}},
+    "horizontalAlignment": "CENTER",
+}
+
+
+def get_or_create_daily_metrics_sheet():
+    """Gets or creates the 'Daily Apply Metrics' worksheet with executive formatting."""
+    spreadsheet = _get_spreadsheet()
+    try:
+        sheet = spreadsheet.worksheet(DAILY_METRICS_SHEET_TITLE)
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = spreadsheet.add_worksheet(title=DAILY_METRICS_SHEET_TITLE, rows=150, cols=len(DAILY_METRICS_HEADERS))
+
+    rows = sheet.get_all_values()
+    if not rows or rows[0][:len(DAILY_METRICS_HEADERS)] != DAILY_METRICS_HEADERS:
+        if not rows:
+            sheet.append_row(DAILY_METRICS_HEADERS, value_input_option="USER_ENTERED")
+        else:
+            sheet.insert_row(DAILY_METRICS_HEADERS, index=1, value_input_option="USER_ENTERED")
+        try:
+            sheet.format("A1:J1", DAILY_HEADER_FORMAT)
+            sheet.freeze(rows=1)
+        except Exception as e:
+            print(f"Warning: Failed to format header in {DAILY_METRICS_SHEET_TITLE}: {e}")
+    return sheet
+
+
+def compute_daily_counts(target_date_str: str = None) -> dict:
+    """Computes application counts for a specific date (YYYY-MM-DD) from local logs."""
+    if not target_date_str:
+        target_date_str = date.today().isoformat()
+
+    counts = {
+        "naukri_direct": 0,
+        "linkedin_direct": 0,
+        "naukri_external": 0,
+        "linkedin_external": 0,
+        "cold_emails": 0,
+    }
+
+    # 1. Parse applications_log.csv
+    app_log = Path(__file__).resolve().parent / "applications_log.csv"
+    if app_log.exists():
+        with open(app_log, "r", encoding="utf-8", errors="replace") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ts = (row.get("timestamp") or "").strip()
+                if not ts or not ts.startswith(target_date_str):
+                    continue
+                source = (row.get("source") or "").lower()
+                status = (row.get("status") or "").lower()
+                reason = (row.get("reason") or "").lower()
+
+                if status == "applied":
+                    if "naukri" in source:
+                        counts["naukri_direct"] += 1
+                    elif "linkedin" in source:
+                        counts["linkedin_direct"] += 1
+                elif "external" in reason or status == "manual":
+                    if "naukri" in source:
+                        counts["naukri_external"] += 1
+                    elif "linkedin" in source:
+                        counts["linkedin_external"] += 1
+                elif "linkedin" in source and status == "skipped":
+                    counts["linkedin_external"] += 1
+
+    # 2. Parse outreach_log.csv
+    outreach_log = Path(__file__).resolve().parent / "outreach_log.csv"
+    if outreach_log.exists():
+        with open(outreach_log, "r", encoding="utf-8", errors="replace") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ts = (row.get("timestamp") or "").strip()
+                if ts and ts.startswith(target_date_str):
+                    counts["cold_emails"] += 1
+
+    return counts
+
+
+def record_daily_metrics(target_date_str: str = None, notes: str = "Automated Daily Run") -> bool:
+    """Updates or appends a row for the target date in 'Daily Apply Metrics' tab."""
+    if not target_date_str:
+        target_date_str = date.today().isoformat()
+
+    try:
+        dt = datetime.strptime(target_date_str, "%Y-%m-%d")
+        dmy_date = dt.strftime("%d-%m-%Y")
+    except Exception:
+        dmy_date = target_date_str
+
+    counts = compute_daily_counts(target_date_str)
+    
+    # Resilient retry loop in case network is reconnecting after Mac wake
+    sheet = None
+    for attempt in range(1, 6):
+        try:
+            sheet = get_or_create_daily_metrics_sheet()
+            break
+        except Exception as e:
+            if attempt == 5:
+                raise
+            print(f"[*] Network wait / retry {attempt}/5 for Google Sheets connection ({e})...")
+            time.sleep(3)
+
+    rows = []
+    for attempt in range(1, 6):
+        try:
+            rows = sheet.get_all_values()
+            break
+        except Exception as e:
+            if attempt == 5:
+                raise
+            print(f"[*] Network wait / retry {attempt}/5 reading rows ({e})...")
+            time.sleep(3)
+
+    # Search for existing date row (checking both DD-MM-YYYY and YYYY-MM-DD)
+    existing_row_idx = None
+    for idx, r in enumerate(rows, start=1):
+        if r and len(r) > 0:
+            val = r[0].strip()
+            if val in [dmy_date, target_date_str]:
+                existing_row_idx = idx
+                break
+
+    if existing_row_idx:
+        row_num = existing_row_idx
+        updated_values = [
+            target_date_str,
+            counts["naukri_direct"],
+            counts["linkedin_direct"],
+            f"=B{row_num}+C{row_num}",
+            counts["naukri_external"],
+            counts["linkedin_external"],
+            f"=E{row_num}+F{row_num}",
+            f"=D{row_num}+G{row_num}",
+            counts["cold_emails"],
+            notes,
+        ]
+        sheet.update(range_name=f"A{row_num}:J{row_num}", values=[updated_values], value_input_option="USER_ENTERED")
+        print(f"✓ Updated Daily Apply Metrics row {row_num} for {target_date_str}")
+    else:
+        row_num = len(rows) + 1
+        new_row = [
+            target_date_str,
+            counts["naukri_direct"],
+            counts["linkedin_direct"],
+            f"=B{row_num}+C{row_num}",
+            counts["naukri_external"],
+            counts["linkedin_external"],
+            f"=E{row_num}+F{row_num}",
+            f"=D{row_num}+G{row_num}",
+            counts["cold_emails"],
+            notes,
+        ]
+        sheet.append_row(new_row, value_input_option="USER_ENTERED")
+        print(f"✓ Appended new Daily Apply Metrics row {row_num} for {dmy_date}")
+
+    # Format totals cells
+    try:
+        sheet.format(f"D{row_num}", TOTAL_DIRECT_FORMAT)
+        sheet.format(f"G{row_num}", TOTAL_DIRECT_FORMAT)
+    except Exception as e:
+        print(f"Note: Formatting cells D{row_num}:H{row_num}: {e}")
+
+    return True
+
+
+# ==============================================================================
+# APPLY YOURSELF (TAB: "Apply Yourself")
+# High-priority queue for external jobs requiring user review / manual submit
+# ==============================================================================
+
+APPLY_YOURSELF_SHEET_TITLE = "Apply Yourself"
+
+APPLY_YOURSELF_HEADERS = [
+    "Date Added",
+    "Platform",
+    "Company",
+    "Job Title",
+    "Location",
+    "Experience",
+    "Direct Apply URL",
+    "Tailored Resume Path",
+    "Reason for Manual Action",
+    "Status",
+]
+
+APPLY_YOURSELF_HEADER_FORMAT = {
+    "backgroundColor": {"red": 0.55, "green": 0.27, "blue": 0.07},  # Warm Executive Bronze/Amber
+    "textFormat": {
+        "bold": True,
+        "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+        "fontSize": 10,
+    },
+    "horizontalAlignment": "CENTER",
+    "verticalAlignment": "MIDDLE",
+}
+
+
+def get_or_create_apply_yourself_sheet():
+    """Gets or creates the 'Apply Yourself' worksheet with executive formatting."""
+    spreadsheet = _get_spreadsheet()
+    try:
+        sheet = spreadsheet.worksheet(APPLY_YOURSELF_SHEET_TITLE)
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = spreadsheet.add_worksheet(title=APPLY_YOURSELF_SHEET_TITLE, rows=200, cols=len(APPLY_YOURSELF_HEADERS))
+        sheet.append_row(APPLY_YOURSELF_HEADERS, value_input_option="RAW")
+        try:
+            sheet.format("A1:J1", APPLY_YOURSELF_HEADER_FORMAT)
+            sheet.freeze(rows=1)
+        except Exception as e:
+            print(f"Warning: Failed to format header row in Apply Yourself: {e}")
+    return sheet
+
+
+def append_apply_yourself_job(job_data: dict) -> bool:
+    """Appends a job requiring manual action into 'Apply Yourself' tab with retry support."""
+    apply_url = job_data.get("apply_url", "")
+    if not apply_url or any(bad in apply_url.lower() for bad in ["/login", "signin", "fromsignin", "chrome-error"]):
+        apply_url = job_data.get("job_url", "")
+    row_values = [
+        date.today().isoformat(),
+        job_data.get("platform", "naukri"),
+        job_data.get("company", ""),
+        job_data.get("title", ""),
+        job_data.get("location", ""),
+        job_data.get("exp", ""),
+        apply_url,
+        job_data.get("tailored_resume_path", ""),
+        job_data.get("reason", "Manual intervention needed"),
+        "PENDING_USER_APPLY",
+    ]
+
+    for attempt in range(1, 4):
+        try:
+            sheet = get_or_create_apply_yourself_sheet()
+            sheet.append_row(row_values, value_input_option="USER_ENTERED")
+            print(f"✓ Added to 'Apply Yourself' tab: {job_data.get('title')} @ {job_data.get('company')}")
+            return True
+        except Exception as e:
+            if attempt < 3:
+                time.sleep(3)
+            else:
+                print(f"ERROR appending to Apply Yourself sheet: {e}")
+                return False
+
+
+def update_job_status_in_sheet1(job_id_or_url: str, new_status: str, notes: str = "", row_num: int = None) -> bool:
+    """Finds a job by ID or URL in Sheet1 and updates its Status and Notes with retry support."""
+    for attempt in range(1, 4):
+        try:
+            sheet = _get_sheet()
+            if row_num and row_num > 1:
+                sheet.update(range_name=f"I{row_num}:J{row_num}", values=[[new_status, notes]], value_input_option="USER_ENTERED")
+                return True
+
+            if not job_id_or_url:
+                return False
+
+            rows = sheet.get_all_values()
+            for idx, r in enumerate(rows):
+                if idx == 0:
+                    continue
+                curr_id = r[2].strip() if len(r) > 2 else ""
+                curr_url = r[7].strip() if len(r) > 7 else ""
+                if (job_id_or_url == curr_id) or (curr_url and (curr_url in job_id_or_url or job_id_or_url in curr_url)):
+                    target_row = idx + 1
+                    sheet.update(range_name=f"I{target_row}:J{target_row}", values=[[new_status, notes]], value_input_option="USER_ENTERED")
+                    return True
+            return False
+        except Exception as e:
+            if attempt < 3:
+                time.sleep(3)
+            else:
+                print(f"WARN updating job status in Sheet1: {e}")
+                return False
+
+
+def backfill_daily_metrics_history():
+    """Scans historical dates from applications_log.csv and populates 'Daily Apply Metrics'."""
+    app_log = Path(__file__).resolve().parent / "applications_log.csv"
+    if not app_log.exists():
+        print("No applications_log.csv found.")
+        return 0
+
+    dates = set()
+    with open(app_log, "r", encoding="utf-8", errors="replace") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            ts = (row.get("timestamp") or "").strip()
+            date_match = re.match(r"^(\d{4}-\d{2}-\d{2})", ts)
+            if date_match:
+                dates.add(date_match.group(1))
+
+    sorted_dates = sorted(list(dates))
+    print(f"Found {len(sorted_dates)} historical dates to sync: {sorted_dates}")
+    for d in sorted_dates:
+        record_daily_metrics(d, notes="Historical Application Sync")
+    print(f"✓ Successfully synchronized all {len(sorted_dates)} dates into 'Daily Apply Metrics' tab!")
+    return len(sorted_dates)
+
+
+# ==============================================================================
+# WEEKLY PROFILE AUDIT & REVAMP TRACKER (TAB: "Weekly Profile Audit")
+# ==============================================================================
+
+WEEKLY_AUDIT_SHEET_TITLE = "Weekly Profile Audit"
+
+WEEKLY_AUDIT_HEADERS = [
+    "Audit Date",
+    "Naukri Primary (7D Searches)",
+    "Primary Status",
+    "Naukri Secondary (7D Searches)",
+    "Secondary Status",
+    "LinkedIn (7D Profile Views)",
+    "LinkedIn Status",
+    "Revamp Actions Taken",
+    "Notes",
+]
+
+WEEKLY_AUDIT_HEADER_FORMAT = {
+    "backgroundColor": {"red": 0.12, "green": 0.29, "blue": 0.53},  # Deep Navy Blue
+    "textFormat": {
+        "bold": True,
+        "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+        "fontSize": 10,
+    },
+    "horizontalAlignment": "CENTER",
+    "verticalAlignment": "MIDDLE",
+}
+
+
+def get_or_create_weekly_audit_sheet():
+    """Gets or creates the 'Weekly Profile Audit' worksheet with executive styling."""
+    spreadsheet = _get_spreadsheet()
+    try:
+        sheet = spreadsheet.worksheet(WEEKLY_AUDIT_SHEET_TITLE)
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = spreadsheet.add_worksheet(title=WEEKLY_AUDIT_SHEET_TITLE, rows=100, cols=len(WEEKLY_AUDIT_HEADERS))
+        sheet.append_row(WEEKLY_AUDIT_HEADERS, value_input_option="RAW")
+        try:
+            sheet.format("A1:I1", WEEKLY_AUDIT_HEADER_FORMAT)
+            sheet.freeze(rows=1)
+        except Exception as e:
+            print(f"Note: Header format error: {e}")
+    return sheet
+
+
+def append_weekly_audit_entry(audit_data: dict) -> bool:
+    """Appends an individual profile audit and revamp decision row."""
+    # Retry loop in case network is reconnecting
+    for attempt in range(1, 4):
+        try:
+            sheet = get_or_create_weekly_audit_sheet()
+            row = [
+                audit_data.get("audit_date", date.today().isoformat()),
+                audit_data.get("p1_searches", 0),
+                audit_data.get("p1_status", "UNKNOWN"),
+                audit_data.get("p2_searches", 0),
+                audit_data.get("p2_status", "UNKNOWN"),
+                audit_data.get("li_views", audit_data.get("li_searches", 0)),
+                audit_data.get("li_status", "UNKNOWN"),
+                audit_data.get("actions", "None"),
+                audit_data.get("notes", "Weekly Automated Audit"),
+            ]
+            sheet.append_row(row, value_input_option="USER_ENTERED")
+            return True
+        except Exception as e:
+            if attempt == 3:
+                raise
+            time.sleep(2)
+    return False
+
+
+def fetch_apply_yourself_jobs() -> dict:
+    """Exposes unified SheetsManager fetch_apply_yourself_jobs."""
+    from core.sheets_manager import get_sheets_manager
+    return get_sheets_manager().fetch_apply_yourself_jobs()
+
+
+def update_apply_yourself_status(
+    direct_apply_url: str,
+    status: str,
+    reason: str = "",
+    row_index: int = None,
+    company: str = "",
+    job_title: str = "",
+    tailored_resume_path: str = ""
+) -> bool:
+    """Exposes unified SheetsManager update_job_status."""
+    from core.sheets_manager import get_sheets_manager
+    return get_sheets_manager().update_job_status(
+        direct_apply_url=direct_apply_url,
+        status=status,
+        reason=reason,
+        row_index=row_index,
+        company=company,
+        job_title=job_title,
+        tailored_resume_path=tailored_resume_path
+    )
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Google Sheets Daily Apply Metrics Logger")
+    parser.add_argument("--sync-today", action="store_true", help="Sync today's metrics to Google Sheets")
+    parser.add_argument("--backfill", action="store_true", help="Backfill historical daily metrics from logs")
+    parser.add_argument("--date", type=str, help="Specific date to sync (YYYY-MM-DD)")
+    args = parser.parse_args()
+
+    if args.backfill:
+        backfill_daily_metrics_history()
+    elif args.sync_today or args.date:
+        record_daily_metrics(args.date)
+    else:
+        parser.print_help()
+
 

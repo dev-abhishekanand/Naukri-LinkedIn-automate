@@ -23,7 +23,19 @@ fi
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 LOG_FILE="$LOG_DIR/headline_$TIMESTAMP.log"
 
-# If another headline run is somehow already active, exit immediately
+# 1. Clean up stale locks (> 30 mins)
+find "$HEADLINE_LOCK" "$SCHEDULER_LOCK" -maxdepth 0 -type d -mmin +30 -exec rm -rf {} + 2>/dev/null || true
+
+# 2. Wait up to 5 minutes if morning apply job (.scheduler.lock) is active BEFORE acquiring lock
+MAX_WAIT_SECONDS=300
+WAITED=0
+while [[ -d "$SCHEDULER_LOCK" && $WAITED -lt $MAX_WAIT_SECONDS ]]; do
+    echo "[$(date)] Waiting for daily application run to finish (.scheduler.lock active)..." >> "$LOG_FILE"
+    sleep 5
+    WAITED=$((WAITED + 5))
+done
+
+# 3. Acquire exclusive lock for headline update
 if ! mkdir "$HEADLINE_LOCK" 2>/dev/null; then
     echo "[$(date)] Another headline update run is already active. Exiting." >> "$LOG_FILE"
     exit 0
@@ -34,13 +46,12 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Wait up to 10 minutes (40 x 15s) if morning apply job (.scheduler.lock) is active
-MAX_WAIT_SECONDS=600
-WAITED=0
-while [[ -d "$SCHEDULER_LOCK" && $WAITED -lt $MAX_WAIT_SECONDS ]]; do
-    echo "[$(date)] Waiting for daily application run to finish (.scheduler.lock active)..." >> "$LOG_FILE"
-    sleep 15
-    WAITED=$((WAITED + 15))
+# 4. Wait for internet connection (up to 30s) in case Mac just woke up
+NET_WAITED=0
+while ! curl -s --head --connect-timeout 2 https://www.google.com >/dev/null && [[ $NET_WAITED -lt 30 ]]; do
+    echo "[$(date)] Waiting for internet connection to establish after wake..." >> "$LOG_FILE"
+    sleep 2
+    NET_WAITED=$((NET_WAITED + 2))
 done
 
 {
@@ -59,28 +70,54 @@ done
     fi
 
     # Step 1: Rotate Profile Headline (sets "Updated: Today" on Naukri)
-    echo "[1/3] Updating Naukri profile headline..."
-    "$PYTHON" "$PROJECT_DIR/naukri_update_headline.py" --unattended
+    echo "[1/4] Updating Naukri primary profile headline..."
+    "$PYTHON" "$PROJECT_DIR/naukri_update_headline.py" --unattended --account primary --session session_naukri.json --profile profile.yaml
     HEADLINE_EXIT=$?
 
+    echo "[2/4] Updating Naukri secondary profile headline..."
+    if [[ -f "$PROJECT_DIR/session_naukri_secondary.json" ]]; then
+        "$PYTHON" "$PROJECT_DIR/naukri_update_headline.py" --unattended --account secondary --session session_naukri_secondary.json --profile profile_secondary.yaml
+    else
+        echo "INFO: session_naukri_secondary.json not found yet."
+    fi
+
     # Step 2: Re-upload Resume (sets "Resume uploaded: Today" & 100% freshness on Naukri)
-    echo "[2/3] Re-uploading resume to Naukri..."
-    "$PYTHON" "$PROJECT_DIR/naukri_refresh_resume.py" --unattended
-    RESUME_EXIT=$?
+    echo "[3/5] Re-uploading resume to Naukri (Primary)..."
+    "$PYTHON" "$PROJECT_DIR/naukri_refresh_resume.py" --unattended --account primary --session session_naukri.json --profile profile.yaml
+    RESUME_PRIMARY_EXIT=$?
+
+    echo "[4/5] Re-uploading resume to Naukri (Secondary)..."
+    if [[ -f "$PROJECT_DIR/session_naukri_secondary.json" ]]; then
+        "$PYTHON" "$PROJECT_DIR/naukri_refresh_resume.py" --unattended --account secondary --session session_naukri_secondary.json --profile profile_secondary.yaml
+        RESUME_SECONDARY_EXIT=$?
+    else
+        RESUME_SECONDARY_EXIT=0
+    fi
 
     # Step 3: Rotate LinkedIn Profile Headline (elevates Recruiter search & activity signals)
-    echo "[3/3] Updating LinkedIn profile headline..."
+    echo "[5/5] Updating LinkedIn profile headline..."
     "$PYTHON" "$PROJECT_DIR/linkedin_update_headline.py" --unattended
     LINKEDIN_EXIT=$?
 
     echo "========================================"
     echo "Daily refresh finished at $(date)"
-    echo "  Naukri Headline Exit Code: $HEADLINE_EXIT"
-    echo "  Naukri Resume Exit Code:   $RESUME_EXIT"
-    echo "  LinkedIn Headline Exit:    $LINKEDIN_EXIT"
+    echo "  Naukri Primary Headline Exit:  $HEADLINE_EXIT"
+    echo "  Naukri Primary Resume Exit:    $RESUME_PRIMARY_EXIT"
+    echo "  Naukri Secondary Resume Exit:  $RESUME_SECONDARY_EXIT"
+    echo "  LinkedIn Headline Exit:        $LINKEDIN_EXIT"
     echo "========================================"
 
-    if [[ $HEADLINE_EXIT -ne 0 || $RESUME_EXIT -ne 0 || $LINKEDIN_EXIT -ne 0 ]]; then
+    if [[ $HEADLINE_EXIT -eq 0 && $RESUME_PRIMARY_EXIT -eq 0 ]]; then
+        "$PYTHON" -c "
+import json, datetime, pathlib
+p = pathlib.Path('$PROJECT_DIR/.daily_run_state.json')
+data = json.loads(p.read_text()) if p.exists() else {}
+data['headline_date'] = datetime.date.today().isoformat()
+p.write_text(json.dumps(data, indent=2))
+" 2>/dev/null || true
+    fi
+
+    if [[ $HEADLINE_EXIT -ne 0 || $RESUME_PRIMARY_EXIT -ne 0 ]]; then
         exit 1
     fi
     exit 0

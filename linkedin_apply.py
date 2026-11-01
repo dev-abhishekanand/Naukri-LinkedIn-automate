@@ -19,9 +19,15 @@ from datetime import datetime
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from common.browser_factory import launch_chrome_browser
 
 from common.profile import Profile
 from common import llm
+from common.linkedin_referral_helper import (
+    extract_people_from_job_page,
+    send_referral_outreach,
+    is_already_contacted,
+)
 from google_sheets_logger import append_applied_job, append_external_job, external_job_url_exists
 
 
@@ -105,6 +111,7 @@ def log_unapplied_job(card: dict, reason: str):
             "href": job_url,
             "status": "PENDING",
             "notes": reason,
+            "tailored_resume_path": card.get("tailored_resume_path", ""),
         })
         print(f"Google Sheets: unapplied LinkedIn job logged ({card.get('title')} @ {card.get('company')})")
     except Exception as e:
@@ -310,7 +317,15 @@ def run_one_application(page, profile: Profile, job_title: str, company: str) ->
             click_modal_button(page, "Submit application")
             time.sleep(2)
             done_clicked = click_modal_button(page, "Done")
-            return True
+            
+            body_text = page.locator("body").inner_text().lower()
+            if done_clicked or "application was sent" in body_text or "your application was sent" in body_text:
+                return True
+            
+            # Strict confirmation: check if validation errors blocked submission
+            errors = page.locator(".artdeco-inline-feedback--error, [data-test-form-element-error-messages]").all_inner_texts()
+            err_msg = ", ".join(errors) if errors else "Submission confirmation not detected (modal did not dismiss)"
+            raise SkipJob(f"LinkedIn submission blocked by validation error: {err_msg}")
         elif "Review" in buttons:
             click_modal_button(page, "Review")
         elif "Next" in buttons:
@@ -322,7 +337,7 @@ def run_one_application(page, profile: Profile, job_title: str, company: str) ->
     raise SkipJob("exceeded step cap without reaching submit")
 
 
-def run(unattended: bool = False):
+def run(unattended: bool = False, referrals_only: bool = False):
     profile = Profile.load()
     if not Path(SESSION_FILE).exists():
         print(f"NOTICE: {SESSION_FILE} not found. Skipping LinkedIn run.")
@@ -334,33 +349,40 @@ def run(unattended: bool = False):
     if is_unattended:
         print("Running LinkedIn in UNATTENDED mode: any prompt requiring human input will automatically skip.")
 
+    enable_referrals = profile.data.get("linkedin_referral_outreach", True)
+    max_referrals = profile.data.get("linkedin_max_referrals_per_run", 5)
+    referrals_sent = 0
     applied = 0
+
     with sync_playwright() as p:
         browser_mode = profile.data.get("browser_mode", "minimized")
-        if browser_mode == "headless":
-            browser = p.chromium.launch(headless=True, slow_mo=150)
-        elif browser_mode == "minimized":
-            browser = p.chromium.launch(headless=False, slow_mo=150, args=["--start-minimized"])
-        else:
-            browser = p.chromium.launch(headless=False, slow_mo=150)
-
+        browser = launch_chrome_browser(p, browser_mode=browser_mode, slow_mo=150)
         context = browser.new_context(storage_state=SESSION_FILE)
         page = context.new_page()
 
         for role in profile.target_roles:
-            if applied >= profile.stop_after_n_applications:
+            if applied >= profile.stop_after_n_applications and not referrals_only:
                 break
-            easy_apply_only = profile.data.get("linkedin_easy_apply_only", True)
+            easy_apply_only = profile.data.get("linkedin_easy_apply_only", True) and not referrals_only
             easy_apply_filter = "&f_AL=true" if easy_apply_only else ""
             search_url = (
                 "https://www.linkedin.com/jobs/search/?keywords="
                 + role.replace(" ", "%20")
+                + "&location=India&geoId=102713980"
                 + easy_apply_filter
             )
             print(f"\n--- Searching LinkedIn: {role} ---")
             try:
                 page.goto(search_url, wait_until="domcontentloaded", timeout=45000)
             except Exception as e:
+                err_str = str(e)
+                if "ERR_INTERNET_DISCONNECTED" in err_str or "ERR_NAME_NOT_RESOLVED" in err_str:
+                    print(f"FATAL: Internet disconnected during LinkedIn search: {e}")
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+                    sys.exit(2)
                 print(f"  (search navigation error for {role}: {e}, skipping role)")
                 continue
             time.sleep(3)
@@ -393,7 +415,7 @@ def run(unattended: bool = False):
             for idx, card in enumerate(cards):
                 print(f"Candidate {idx + 1}: {card.get('title')} | {card.get('href')}")
 
-                if applied >= profile.stop_after_n_applications:
+                if applied >= profile.stop_after_n_applications and not referrals_only:
                     break
                 try:
                     print(f"ATTEMPTING: {card.get('title')}")
@@ -401,27 +423,158 @@ def run(unattended: bool = False):
                     time.sleep(1.5)
                     card = extract_linkedin_job_details(page, card)
 
-                    success = run_one_application(page, profile, card.get("title", ""), card.get("company", ""))
-                    if success:
-                        applied += 1
-                        log_row([datetime.now(), "linkedin", card.get("title"),
-                                  card.get("company"), "applied", ""])
-                        print(f"Applied: {card.get('title')} @ {card.get('company')} ({applied} total)")
-                        log_applied_job(card)
-                    else:
-                        close_modal(page)
-                        reason = "no Easy Apply button (External company portal)"
-                        log_row([datetime.now(), "linkedin", card.get("title"),
-                                  card.get("company"), "skipped", reason])
-                        print(f"Not applied via Easy Apply: {card.get('title')} @ {card.get('company')} — logging to Google Sheets")
-                        log_unapplied_job(card, reason)
+                    from location_filter import is_india_job
+                    if not is_india_job(
+                        location=card.get("location", ""),
+                        title=card.get("title", ""),
+                        company=card.get("company", ""),
+                        url=card.get("href", ""),
+                    ):
+                        print(f"Skipping foreign / non-India job: {card.get('title')} @ {card.get('company')} ({card.get('location')})")
+                        log_row([
+                            datetime.now(),
+                            "linkedin",
+                            card.get("title"),
+                            card.get("company"),
+                            "skipped",
+                            f"foreign location: {card.get('location')}",
+                        ])
+                        continue
+
+                    # Extract JD text for tailoring
+                    jd_text = page.evaluate("""
+                        () => document.querySelector('.jobs-description__content, .jobs-box__html-content, .job-details-jobs-unified-top-card__content')?.innerText?.trim() || ''
+                    """)
+
+                    # Generate job-specific tailored resume in generated/
+                    tailored_resume_path = ""
+                    try:
+                        from common.ats_pipeline import prepare_tailored_resume
+                        safe_title = re.sub(r'[^A-Za-z0-9]+', '_', card.get("title", "job"))[:35]
+                        safe_comp = re.sub(r'[^A-Za-z0-9]+', '_', card.get("company", "company"))[:25]
+                        job_id = card.get("jobId") or str(int(time.time()))
+                        out_path = f"generated/Abhishek_Anand_{safe_comp}_{safe_title}_{job_id}.docx"
+                        os.makedirs("generated", exist_ok=True)
+                        content_for_tailoring = jd_text if len(jd_text) > 40 else f"{card.get('title')} React Frontend Developer at {card.get('company')}"
+                        ats_res = prepare_tailored_resume(content_for_tailoring, output_path=out_path)
+                        tailored_resume_path = str(ats_res.get("tailored_resume_path", out_path))
+                        card["tailored_resume_path"] = tailored_resume_path
+                        print(f"  ✓ Tailored resume generated: {tailored_resume_path}")
+                    except Exception as e:
+                        tailored_resume_path = "Abhishek_Anand_Resume.docx"
+                        card["tailored_resume_path"] = tailored_resume_path
+
+                    success = False
+                    if not referrals_only:
+                        success = run_one_application(page, profile, card.get("title", ""), card.get("company", ""))
+                        if success:
+                            applied += 1
+                            log_row([datetime.now(), "linkedin", card.get("title"),
+                                      card.get("company"), "applied", ""])
+                            print(f"Applied: {card.get('title')} @ {card.get('company')} ({applied} total)")
+                            log_applied_job(card)
+                        else:
+                            close_modal(page)
+                            reason = "no Easy Apply button (External company portal)"
+                            log_row([datetime.now(), "linkedin", card.get("title"),
+                                      card.get("company"), "skipped", reason])
+                            print(f"Not applied via Easy Apply: {card.get('title')} @ {card.get('company')} — routing to Sheet1 & Apply Yourself")
+                            log_unapplied_job(card, reason)
+                            try:
+                                from google_sheets_logger import append_apply_yourself_job
+                                append_apply_yourself_job({
+                                    "platform": "linkedin",
+                                    "company": card.get("company", ""),
+                                    "title": card.get("title", ""),
+                                    "location": card.get("location", ""),
+                                    "exp": card.get("exp", ""),
+                                    "job_url": card.get("href", ""),
+                                    "apply_url": card.get("href", ""),
+                                    "tailored_resume_path": tailored_resume_path,
+                                    "reason": "LinkedIn Easy Apply unavailable / External portal",
+                                    "status": "PENDING_USER_APPLY"
+                                })
+                            except Exception as e:
+                                print(f"  [Apply Yourself] Logging notice: {e}")
+
+                    # --- REFERRAL OUTREACH & MESSAGING ---
+                    # Check for hiring team, job poster, or company connections / alumni
+                    if enable_referrals and referrals_sent < max_referrals:
+                        try:
+                            people = extract_people_from_job_page(page)
+                            if people:
+                                print(f"  [Referral] Found {len(people)} people associated with job ({card.get('title')} @ {card.get('company')})")
+                            outreach_sent_for_job = False
+                            for person in people:
+                                if referrals_sent >= max_referrals:
+                                    break
+                                p_url = person.get("profile_url")
+                                if p_url and not is_already_contacted(p_url):
+                                    res = send_referral_outreach(
+                                        page,
+                                        person,
+                                        card.get("title", ""),
+                                        card.get("company", ""),
+                                        job_url=card.get("href", ""),
+                                        tailored_resume_path=tailored_resume_path,
+                                    )
+                                    if res.get("status") == "SENT":
+                                        referrals_sent += 1
+                                        outreach_sent_for_job = True
+                                        time.sleep(2)
+                                        # Return to job URL if navigated away
+                                        if page.url != card.get("href"):
+                                            try:
+                                                page.goto(card["href"], wait_until="commit", timeout=15000)
+                                                time.sleep(1.5)
+                                            except Exception:
+                                                pass
+
+                            # If referral outreach could not be sent (e.g. limit reached, InMail lock, or skipping)
+                            # and job wasn't submitted natively, ensure it is safely queued in Apply Yourself
+                            if not outreach_sent_for_job and not success and not referrals_only:
+                                try:
+                                    from google_sheets_logger import append_apply_yourself_job
+                                    append_apply_yourself_job({
+                                        "platform": "linkedin",
+                                        "company": card.get("company", ""),
+                                        "title": card.get("title", ""),
+                                        "location": card.get("location", ""),
+                                        "exp": card.get("exp", ""),
+                                        "job_url": card.get("href", ""),
+                                        "apply_url": card.get("href", ""),
+                                        "tailored_resume_path": tailored_resume_path,
+                                        "reason": "Referral outreach restricted / External portal application needed",
+                                        "status": "PENDING_USER_APPLY"
+                                    })
+                                except Exception as e:
+                                    print(f"  [Apply Yourself] Fallback logging notice: {e}")
+                        except Exception as e:
+                            print(f"  [Referral Notice] Error checking people: {e}")
+
                 except SkipJob as e:
                     reason = f"Easy Apply skipped: {e}"
-                    print(f"Skipping job: {e} — logging to Google Sheets")
+                    print(f"Skipping job: {e} — routing to Sheet1 & Apply Yourself")
                     close_modal(page)
                     log_row([datetime.now(), "linkedin", card.get("title"),
                               card.get("company"), "skipped", reason])
                     log_unapplied_job(card, reason)
+                    try:
+                        from google_sheets_logger import append_apply_yourself_job
+                        append_apply_yourself_job({
+                            "platform": "linkedin",
+                            "company": card.get("company", ""),
+                            "title": card.get("title", ""),
+                            "location": card.get("location", ""),
+                            "exp": card.get("exp", ""),
+                            "job_url": card.get("href", ""),
+                            "apply_url": card.get("href", ""),
+                            "tailored_resume_path": card.get("tailored_resume_path", "Abhishek_Anand_Resume.docx"),
+                            "reason": f"Easy Apply skipped: {e}",
+                            "status": "PENDING_USER_APPLY"
+                        })
+                    except Exception as e:
+                        print(f"  [Apply Yourself] Logging notice: {e}")
                     continue
                 except RuntimeError as e:
                     print(f"STOPPING: {e}")
@@ -430,16 +583,33 @@ def run(unattended: bool = False):
                               card.get("company"), "stopped", str(e)])
                     browser.close()
                     return
+                except Exception as e:
+                    err_str = str(e)
+                    print(f"WARN: Error processing LinkedIn job {card.get('title')}: {e}")
+                    log_row([datetime.now(), "linkedin", card.get("title"),
+                              card.get("company"), "error", err_str[:100]])
+                    if "TargetClosedError" in err_str or "target page, context or browser has been closed" in err_str.lower():
+                        print("Browser or target page was closed. Terminating LinkedIn run gracefully.")
+                        break
+                    try:
+                        close_modal(page)
+                    except Exception:
+                        pass
+                    continue
 
                 time.sleep(profile.pace_seconds_between_actions)
 
         browser.close()
 
-    print(f"\nDone. {applied} applications submitted this run. See {LOG_FILE} for the full log.")
+    print(
+        f"\nDone. {applied} applications submitted, {referrals_sent} referral outreach requests sent this run. "
+        f"See {LOG_FILE} and linkedin_referrals_contacted.json for full logs."
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="LinkedIn auto-apply bot")
+    parser = argparse.ArgumentParser(description="LinkedIn auto-apply and referral bot")
     parser.add_argument("--unattended", action="store_true", help="Run in unattended mode")
+    parser.add_argument("--referrals-only", action="store_true", help="Run referral outreach only (skip Easy Apply)")
     args = parser.parse_args()
-    run(unattended=args.unattended)
+    run(unattended=args.unattended, referrals_only=args.referrals_only)

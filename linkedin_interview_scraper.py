@@ -21,6 +21,7 @@ from datetime import datetime
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
+from common.browser_factory import launch_chrome_browser
 
 from common import llm
 from common.gemini import _get_client as _get_gemini_client, MODEL as GEMINI_MODEL
@@ -264,13 +265,7 @@ def run_interview_scraper(
 
     with sync_playwright() as p:
         browser_mode = profile.data.get("browser_mode", "minimized")
-        if browser_mode == "headless":
-            browser = p.chromium.launch(headless=True, slow_mo=150)
-        elif browser_mode == "minimized":
-            browser = p.chromium.launch(headless=False, slow_mo=150, args=["--start-minimized"])
-        else:
-            browser = p.chromium.launch(headless=False, slow_mo=150)
-
+        browser = launch_chrome_browser(p, browser_mode=browser_mode, slow_mo=150)
         context = browser.new_context(storage_state=SESSION_FILE)
         page = context.new_page()
 

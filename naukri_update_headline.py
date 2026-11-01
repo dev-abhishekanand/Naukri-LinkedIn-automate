@@ -19,6 +19,7 @@ import sys
 import time
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from common.browser_factory import launch_chrome_browser, create_stealth_context
 
 from common.profile import Profile
 
@@ -92,32 +93,25 @@ def select_headline(profile: Profile, current_headline: str = "", override_headl
     return candidate
 
 
-def update_naukri_headline(profile: Profile, override_headline: str | None = None, dry_run: bool = False) -> bool:
-    session_path = Path(SESSION_FILE)
+def update_naukri_headline(profile: Profile, override_headline: str | None = None, dry_run: bool = False, session_file: str = SESSION_FILE, account_name: str = "primary") -> bool:
+    session_path = Path(session_file)
     if not session_path.is_absolute():
-        session_path = Path(__file__).resolve().parent / SESSION_FILE
+        session_path = Path(__file__).resolve().parent / session_file
 
     if not session_path.exists():
-        print(f"ERROR: Session file not found: {session_path}")
-        print("Run: python login_capture.py naukri to generate your session.")
-        return False
+        print(f"WARN: Session file not found: {session_path} for account '{account_name}'. Skipping.")
+        return True
 
     with sync_playwright() as p:
         browser_mode = profile.data.get("browser_mode", "minimized")
-        if browser_mode == "headless":
-            browser = p.chromium.launch(headless=True)
-        elif browser_mode == "minimized":
-            browser = p.chromium.launch(headless=False, args=["--start-minimized"])
-        else:
-            browser = p.chromium.launch(headless=False)
-
-        context = browser.new_context(storage_state=str(session_path))
+        browser = launch_chrome_browser(p, browser_mode=browser_mode)
+        context = create_stealth_context(browser, storage_state=session_path)
         page = context.new_page()
 
         print(f"Navigating to {PROFILE_URL}...")
         try:
-            page.goto(PROFILE_URL, wait_until="load", timeout=60000)
-            page.wait_for_selector('.resumeHeadline', timeout=20000)
+            page.goto(PROFILE_URL, wait_until="domcontentloaded", timeout=45000)
+            page.wait_for_selector('.resumeHeadline', timeout=25000)
         except PWTimeout:
             print("ERROR: Timeout loading Naukri profile page or finding .resumeHeadline.")
             print("Your session in session_naukri.json may have expired. Re-authenticate via login_capture.py naukri.")
@@ -205,7 +199,7 @@ def update_naukri_headline(profile: Profile, override_headline: str | None = Non
             print("SUCCESS: Resume headline successfully updated and confirmed on Naukri!")
             log_row([
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "naukri",
+                f"naukri ({account_name})",
                 "Resume Headline",
                 "Naukri Profile",
                 "updated",
@@ -217,7 +211,7 @@ def update_naukri_headline(profile: Profile, override_headline: str | None = Non
             print("WARNING: Live headline does not match target. It may take a moment to refresh.")
             log_row([
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "naukri",
+                f"naukri ({account_name})",
                 "Resume Headline",
                 "Naukri Profile",
                 "unverified_update",
@@ -232,10 +226,23 @@ def main():
     parser.add_argument("--headline", type=str, default=None, help="Explicit headline text to set")
     parser.add_argument("--dry-run", action="store_true", help="Preview today's headline without saving")
     parser.add_argument("--unattended", action="store_true", help="Run in non-interactive unattended mode")
+    parser.add_argument("--session", default="session_naukri.json", help="Path to session JSON file")
+    parser.add_argument("--profile", default="profile.yaml", help="Path to profile YAML file")
+    parser.add_argument("--account", default="primary", help="Account identifier (primary or secondary)")
     args = parser.parse_args()
 
-    profile = Profile.load()
-    success = update_naukri_headline(profile, override_headline=args.headline, dry_run=args.dry_run)
+    profile_p = Path(args.profile)
+    if not profile_p.is_absolute():
+        profile_p = Path(__file__).resolve().parent / args.profile
+
+    profile = Profile.load(str(profile_p))
+    success = update_naukri_headline(
+        profile,
+        override_headline=args.headline,
+        dry_run=args.dry_run,
+        session_file=args.session,
+        account_name=args.account,
+    )
     sys.exit(0 if success else 1)
 
 

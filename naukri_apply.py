@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from common.browser_factory import launch_chrome_browser
 
 from common.profile import Profile
 from common import llm
@@ -41,7 +42,7 @@ def record_processed_job(card: dict, status: str):
             w.writerow(["job_id", "platform", "title", "company", "status", "processed_at", "job_url"])
         w.writerow([
             card.get("jobId", ""),
-            "naukri",
+            card.get("platform", "naukri"),
             card.get("title", ""),
             card.get("company", ""),
             status,
@@ -54,7 +55,13 @@ def load_processed_job_ids() -> set[str]:
     if not Path(PROCESSED_JOBS_FILE).exists():
         return set()
     with open(PROCESSED_JOBS_FILE, newline="") as f:
-        return {row.get("job_id", "").strip() for row in csv.DictReader(f) if row.get("job_id", "").strip()}
+        # Only treat jobs as already processed if they were actually APPLIED
+        # or already logged as EXTERNAL_PENDING. Unapplied/failed jobs remain eligible.
+        return {
+            row.get("job_id", "").strip()
+            for row in csv.DictReader(f)
+            if row.get("job_id", "").strip() and row.get("status", "").strip().upper() in {"APPLIED", "EXTERNAL_PENDING", "EXTERNAL_APPLIED"}
+        }
 
 
 STOP_PHRASES = [
@@ -119,9 +126,10 @@ def log_external_job(card: dict):
                 "notes",
             ])
 
+        platform = card.get("platform", "naukri")
         w.writerow([
             datetime.now(),
-            "naukri",
+            platform,
             card.get("jobId"),
             card.get("title"),
             card.get("company"),
@@ -129,18 +137,20 @@ def log_external_job(card: dict):
             card.get("exp"),
             card.get("href"),
             "PENDING",
-            "External company application - manual completion required",
+            card.get("notes", "External company application - manual completion required"),
         ])
 
     try:
         append_external_job({
             "discovered_at": datetime.now().isoformat(),
+            "platform": card.get("platform", "naukri"),
             "jobId": card.get("jobId"),
             "title": card.get("title"),
             "company": card.get("company"),
             "location": card.get("location"),
             "exp": card.get("exp"),
             "href": card.get("href"),
+            "notes": card.get("notes", "External company application - manual completion required"),
         })
         print("Google Sheets: external job logged")
     except Exception as e:
@@ -266,6 +276,15 @@ def passes_filters(card: dict, profile: Profile, role: str) -> tuple[bool, str]:
         if hi < profile.seniority_floor_years or lo > profile.seniority_ceiling_years:
             return False, f"experience range mismatch ({exp_text})"
 
+    # Target locations filter
+    pref_locs = getattr(profile, "preferred_locations", None) or getattr(profile, "relocate_cities", None)
+    if pref_locs:
+        card_loc = (card.get("location") or "").lower()
+        if card_loc:
+            matched = any(loc.strip().lower() in card_loc for loc in pref_locs)
+            if not matched and "remote" not in card_loc and "anywhere" not in card_loc:
+                return False, f"location mismatch ('{card.get('location')}' not in target locations)"
+
     return True, ""
 
 
@@ -302,10 +321,13 @@ def enumerate_cards(page):
     """, default=[]) or []
 
 def extract_job_details(page) -> dict:
-    """Extract description and explicit key skills from an opened Naukri job page."""
+    """Extract description, explicit key skills, department, industry, and applicant count from an opened Naukri job page."""
     details = {
         "description": "",
         "key_skills": "",
+        "department": "",
+        "industry": "",
+        "applicant_count": 0,
     }
 
     try:
@@ -336,6 +358,21 @@ def extract_job_details(page) -> dict:
                     break
 
             details["key_skills"] = " ".join(section.split()).strip()
+
+        dept_match = re.search(r"Department:\s*([^\n]+)", body, re.IGNORECASE)
+        if dept_match:
+            details["department"] = dept_match.group(1).strip()
+
+        ind_match = re.search(r"Industry Type:\s*([^\n]+)", body, re.IGNORECASE)
+        if ind_match:
+            details["industry"] = ind_match.group(1).strip()
+
+        app_match = re.search(r"(\d+)\s*(?:Applicants|Applications|applied)", body, re.IGNORECASE)
+        if app_match:
+            try:
+                details["applicant_count"] = int(app_match.group(1))
+            except ValueError:
+                pass
     except Exception:
         pass
 
@@ -627,7 +664,8 @@ def verify_applied(page) -> bool:
     if btn:
         try:
             label = btn.inner_text().strip().lower()
-            if label and label != "apply":
+            # Strict confirmation only: Never treat external redirects ("apply on company website") as applied
+            if label in ("applied", "already applied"):
                 return True
         except Exception:
             pass
@@ -936,10 +974,37 @@ def _fill_freetext(page, text: str):
     """, arg=text)
 
 
-def run(unattended: bool = False):
-    profile = Profile.load()
-    if not Path(SESSION_FILE).exists():
-        raise SystemExit(f"{SESSION_FILE} not found. Run: python login_capture.py naukri")
+def run(
+    unattended: bool = False,
+    session_file: str = "session_naukri.json",
+    profile_path: str = "profile.yaml",
+    account_name: str = "primary",
+    max_applications: int = None,
+):
+    session_p = Path(session_file)
+    if not session_p.is_absolute():
+        session_p = Path(__file__).resolve().parent / session_file
+
+    profile_p = Path(profile_path)
+    if not profile_p.is_absolute():
+        profile_p = Path(__file__).resolve().parent / profile_path
+
+    if not session_p.exists():
+        print(f"WARN: Session file '{session_file}' not found for account '{account_name}'. Skipping.")
+        return
+
+    profile = Profile.load(str(profile_p))
+
+    max_apps = max_applications if max_applications is not None else profile.stop_after_n_applications
+
+    print(f"\n==================================================")
+    print(f"NAUKRI AUTO-APPLY: Starting Account [{account_name.upper()}]")
+    print(f"Session: {session_file} | Profile: {profile_path} | Email: {profile.data.get('email')}")
+    print(f"Apply Limit: {max_apps} applications per run (Daily Cap)")
+    pref_locs = getattr(profile, "preferred_locations", None) or getattr(profile, "relocate_cities", None)
+    if pref_locs:
+        print(f"Target Locations: {', '.join(pref_locs)}")
+    print(f"==================================================")
 
     if unattended or os.environ.get("UNATTENDED") == "1" or not sys.stdin.isatty():
         human_timeout = 0
@@ -953,26 +1018,43 @@ def run(unattended: bool = False):
 
     with sync_playwright() as p:
         browser_mode = profile.data.get("browser_mode", "visible")
-        if browser_mode == "headless":
-            browser = p.chromium.launch(headless=True, slow_mo=150)
-        elif browser_mode == "minimized":
-            browser = p.chromium.launch(headless=False, slow_mo=150, args=["--start-minimized"])
-        else:
-            browser = p.chromium.launch(headless=False, slow_mo=150)
-        context = browser.new_context(storage_state=SESSION_FILE)
+        browser = launch_chrome_browser(p, browser_mode=browser_mode, slow_mo=150)
+        context = browser.new_context(storage_state=str(session_p))
         page = context.new_page()
 
-        for role in profile.target_roles:
-            if applied >= profile.stop_after_n_applications:
+        freshness_tiers = [profile.job_freshness_days]
+        if profile.job_freshness_days == 1:
+            freshness_tiers.extend([3, 7])
+        elif profile.job_freshness_days == 3:
+            freshness_tiers.append(7)
+
+        search_tasks = [
+            (role, age)
+            for age in freshness_tiers
+            for role in profile.target_roles
+        ]
+        last_logged_age = None
+        stopped_entirely = False
+
+        for role, current_job_age in search_tasks:
+            if applied >= max_apps or stopped_entirely:
                 break
+
+            if current_job_age != last_logged_age:
+                last_logged_age = current_job_age
+                if current_job_age != profile.job_freshness_days:
+                    print(
+                        f"\n[Dynamic Freshness Expansion] Submitted {applied}/{max_apps} applications with "
+                        f"{profile.job_freshness_days}-day filter. Expanding search to {current_job_age}-day freshness "
+                        f"to guarantee daily target of {max_apps} applications..."
+                    )
 
             slug = role.lower().replace(" ", "-")
             exp_param = int(profile.total_experience_years)
             seen_job_ids = set()
-            stopped_entirely = False
 
             for page_no in range(1, max_pages + 1):
-                if applied >= profile.stop_after_n_applications:
+                if applied >= max_apps or stopped_entirely:
                     break
 
                 # Confirmed pattern: Naukri appends "-N" directly to the slug
@@ -982,7 +1064,7 @@ def run(unattended: bool = False):
                 url = (
                     f"https://www.naukri.com/{slug}-jobs{page_suffix}"
                     f"?experience={exp_param}"
-                    f"&jobAge={profile.job_freshness_days}"
+                    f"&jobAge={current_job_age}"
                 )
                 print(f"\n--- Searching: {role}, page {page_no} ({url}) ---")
                 try:
@@ -991,6 +1073,14 @@ def run(unattended: bool = False):
                 except PWTimeout:
                     pass
                 except Exception as e:
+                    err_str = str(e)
+                    if "ERR_INTERNET_DISCONNECTED" in err_str or "ERR_NAME_NOT_RESOLVED" in err_str:
+                        print(f"FATAL: Internet disconnected during Naukri search: {e}")
+                        try:
+                            browser.close()
+                        except Exception:
+                            pass
+                        sys.exit(2)
                     print(f"  (navigation error, treating as end of results for this role: {e})")
                     break
                 time.sleep(1)
@@ -1012,15 +1102,18 @@ def run(unattended: bool = False):
 
                 for card in new_cards:
                     seen_job_ids.add(card.get("jobId"))
-                    if applied >= profile.stop_after_n_applications:
+                    if applied >= max_apps:
                         break
+
+                    card["platform"] = f"naukri ({account_name})"
+                    card["account"] = account_name
 
                     job_id = (card.get("jobId") or "").strip()
                     job_url = (card.get("href") or "").strip()
 
                     if job_id and job_id in processed_job_ids:
                         log_row([
-                            datetime.now(), "naukri", card.get("title"),
+                            datetime.now(), f"naukri ({account_name})", card.get("title"),
                             card.get("company"), "skipped",
                             "already processed"
                         ])
@@ -1038,7 +1131,7 @@ def run(unattended: bool = False):
                                     processed_job_ids.add(job_id)
 
                                 log_row([
-                                    datetime.now(), "naukri", card.get("title"),
+                                    datetime.now(), f"naukri ({account_name})", card.get("title"),
                                     card.get("company"), "skipped",
                                     "external URL already logged"
                                 ])
@@ -1052,7 +1145,7 @@ def run(unattended: bool = False):
 
                     ok, reason = passes_filters(card, profile, role)
                     if not ok:
-                        log_row([datetime.now(), "naukri", card.get("title"),
+                        log_row([datetime.now(), f"naukri ({account_name})", card.get("title"),
                                   card.get("company"), "skipped", reason])
                         print(f"Skipped: {card.get('title')} @ {card.get('company')} — {reason}")
                         continue
@@ -1079,18 +1172,48 @@ def run(unattended: bool = False):
                             "HIGH_REACT_FRONTEND",
                             "HIGH_FULLSTACK_JAVASCRIPT",
                             "MEDIUM_REACT_SOFTWARE_ENGINEER",
+                            "MEDIUM_REACT_COMPETING_STACK",
+                            "MEDIUM_REACT_PYTHON",
                         }
 
                         if quality not in allowed_quality:
                             log_row([
                                 datetime.now(),
-                                "naukri",
+                                f"naukri ({account_name})",
                                 card.get("title", ""),
                                 card.get("company", ""),
                                 "skipped",
                                 f"quality={quality}",
                             ])
                             print(f"SKIP: quality={quality}")
+                            continue
+
+                        # Filter out misclassified agency jobs that damage department/industry match
+                        dept_clean = job_details.get("department", "").lower().strip()
+                        ind_clean = job_details.get("industry", "").lower().strip()
+
+                        if dept_clean in ["other", "unclassified"]:
+                            log_row([
+                                datetime.now(),
+                                f"naukri ({account_name})",
+                                card.get("title", ""),
+                                card.get("company", ""),
+                                "skipped",
+                                "mismatch=DEPARTMENT_OTHER",
+                            ])
+                            print(f"SKIP: Recruiter misclassified department as '{dept_clean}' (protecting 100% Department match)")
+                            continue
+
+                        if any(b in ind_clean for b in ["bpm / bpo", "call center", "telecom / bpo"]):
+                            log_row([
+                                datetime.now(),
+                                f"naukri ({account_name})",
+                                card.get("title", ""),
+                                card.get("company", ""),
+                                "skipped",
+                                f"mismatch=INDUSTRY_{ind_clean}",
+                            ])
+                            print(f"SKIP: Mismatched industry '{ind_clean}' (protecting 100% Industry match)")
                             continue
 
                         master_resume_path = profile.data.get(
@@ -1134,38 +1257,20 @@ def run(unattended: bool = False):
                             master_resume_path,
                         ):
                             log_tailored_job(card, ats_result)
-
-                            if job_id:
-                                record_processed_job(
-                                    card,
-                                    "TAILORED_MANUAL",
-                                )
-                                processed_job_ids.add(job_id)
-
-                            log_row([
-                                datetime.now(),
-                                "naukri",
-                                card.get("title", ""),
-                                card.get("company", ""),
-                                "manual",
-                                "tailored resume queued for manual application",
-                            ])
-
                             print(
-                                f"MANUAL TAILORED: "
+                                f"Tailored resume saved: "
                                 f"{card.get('title')} @ {card.get('company')} — "
                                 f"{ats_result['tailored_resume_path']}"
                             )
-                            continue
-
-                        print(
-                            "Master Resume sufficient — "
-                            "continuing with automatic application"
-                        )
+                        else:
+                            print(
+                                "Master Resume sufficient — "
+                                "continuing with automatic application"
+                            )
 
                         clicked = click_native_apply(page)
                         if not clicked:
-                            log_row([datetime.now(), "naukri", card.get("title"),
+                            log_row([datetime.now(), f"naukri ({account_name})", card.get("title"),
                                       card.get("company"), "skipped", "apply button click didn't register"])
                             print(f"Skipped: {card.get('title')} @ {card.get('company')} — apply click didn't register")
                             continue
@@ -1182,39 +1287,48 @@ def run(unattended: bool = False):
                                 record_processed_job(card, "APPLIED")
                                 processed_job_ids.add(job_id)
 
-                            log_row([datetime.now(), "naukri", card.get("title"),
+                            log_row([datetime.now(), f"naukri ({account_name})", card.get("title"),
                                       card.get("company"), "applied", ""])
                             try:
-                                append_applied_job({
+                                app_payload = {
                                     "discovered_at": datetime.now().isoformat(),
+                                    "platform": f"naukri ({account_name})",
                                     "jobId": card.get("jobId"),
                                     "title": card.get("title"),
                                     "company": card.get("company"),
                                     "location": card.get("location"),
                                     "exp": card.get("exp"),
                                     "href": card.get("href"),
-                                })
+                                    "notes": f"Verified application [{account_name}]",
+                                }
+                                if ats_result:
+                                    app_payload["tailored_resume_path"] = str(ats_result.get("tailored_resume_path", ""))
+                                    app_payload["jd_keywords"] = ", ".join(str(k) for k in ats_result.get("keywords", []))
+                                    tailoring_info = ats_result.get("tailoring", {})
+                                    if isinstance(tailoring_info, dict):
+                                        app_payload["missing_keywords"] = ", ".join(str(m) for m in tailoring_info.get("unsupported", []))
+                                append_applied_job(app_payload)
                                 print("Google Sheets: verified application logged")
                             except Exception as e:
                                 print(f"Google Sheets application logging failed: {e}")
                             print(f"Applied: {card.get('title')} @ {card.get('company')} ({applied} total)")
                         else:
                             shot_path = _save_debug_screenshot(page, card.get("title"))
-                            log_row([datetime.now(), "naukri", card.get("title"),
+                            log_row([datetime.now(), f"naukri ({account_name})", card.get("title"),
                                       card.get("company"), "uncertain",
                                       f"couldn't confirm submission — screenshot saved to {shot_path}"])
                             print(f"UNCERTAIN: {card.get('title')} @ {card.get('company')} — "
                                   f"couldn't confirm the application actually went through. Check it manually.")
 
                     except SkipJob as e:
-                        log_row([datetime.now(), "naukri", card.get("title"),
+                        log_row([datetime.now(), f"naukri ({account_name})", card.get("title"),
                                   card.get("company"), "skipped", str(e)])
                         print(f"Skipped: {card.get('title')} @ {card.get('company')} — {e}")
                         continue
 
                     except StopRun as e:
                         print(f"STOPPING: {e}")
-                        log_row([datetime.now(), "naukri", card.get("title"),
+                        log_row([datetime.now(), f"naukri ({account_name})", card.get("title"),
                                   card.get("company"), "stopped", str(e)])
                         browser.close()
                         return
@@ -1223,7 +1337,7 @@ def run(unattended: bool = False):
                         # Anything unexpected (stray Playwright errors, torn-down
                         # page contexts, etc.) -- log it and move to the next
                         # listing instead of crashing the whole run.
-                        log_row([datetime.now(), "naukri", card.get("title"),
+                        log_row([datetime.now(), f"naukri ({account_name})", card.get("title"),
                                   card.get("company"), "skipped", f"unexpected error: {e}"])
                         print(f"Skipped (unexpected error): {card.get('title')} @ {card.get('company')} — {e}")
                         continue
@@ -1244,5 +1358,15 @@ def run(unattended: bool = False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Naukri auto-apply bot")
     parser.add_argument("--unattended", action="store_true", help="Run without human intervention; skip questions requiring human input")
+    parser.add_argument("--session", default="session_naukri.json", help="Path to session JSON file")
+    parser.add_argument("--profile", default="profile.yaml", help="Path to profile YAML file")
+    parser.add_argument("--account", default="primary", help="Account identifier (primary or secondary)")
+    parser.add_argument("--limit", type=int, default=None, help="Maximum applications per run (default: 50 from profile)")
     args = parser.parse_args()
-    run(unattended=args.unattended)
+    run(
+        unattended=args.unattended,
+        session_file=args.session,
+        profile_path=args.profile,
+        account_name=args.account,
+        max_applications=args.limit,
+    )

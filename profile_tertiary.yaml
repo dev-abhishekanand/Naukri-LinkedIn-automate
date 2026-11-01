@@ -1,0 +1,235 @@
+target_roles:
+- React Developer
+- Frontend Developer
+- Frontend Engineer
+- React + TypeScript Developer
+- Next.js Developer
+- UI Developer
+role_required_keywords:
+  React Developer:
+  - react developer
+  - react engineer
+  - React.js Developer
+  - React JS Developer
+  - JavaScript Developer (React.js)
+  - React Js Frontend Developer
+  - Frontend Developer
+  - React Frontend Developer
+  Frontend Developer:
+  - frontend developer
+  - front end developer
+  - senior frontend developer
+  - sr. frontend developer
+  Frontend Engineer:
+  - frontend engineer
+  - front end engineer
+  - senior frontend engineer
+  - sr. frontend engineer
+  React + TypeScript Developer:
+  - react
+  - typescript
+  Next.js Developer:
+  - next.js
+  - nextjs
+  UI Developer:
+  - ui developer
+  - ui engineer
+  - user interface developer
+  - react ui
+first_name: Abhishek
+last_name: Anand
+middle_name: ''
+phone: +91-7606078525
+email: abbyanand7@gmail.com
+current_city: Bengaluru
+relocate_cities:
+- Bengaluru
+- Hyderabad
+- Pune
+- Noida
+- Gurgaon
+- Delhi
+- Remote
+preferred_locations:
+- Bengaluru
+- Bangalore
+- Hyderabad
+- Pune
+- Noida
+- Gurgaon
+- Gurugram
+- Delhi
+- Remote
+work_mode: onsite_or_hybrid
+night_shift_ok: true
+weekend_ok: false
+total_experience_years: 3.5
+current_employer: Independent Frontend Consultant
+current_title_official: Frontend Consultant / React Engineer
+current_title_functional: Frontend / React development
+notice_period_days: 0
+immediately_available: true
+current_ctc_lpa: 7.0
+expected_ctc_lpa: 12.0
+ctc_disclosure_policy: negotiable
+highest_qualification: B.Tech
+certifications: []
+skills_primary:
+- React.js
+- Next.js
+- TypeScript
+- JavaScript
+- HTML5
+- CSS3
+- Redux Toolkit
+- Redux
+- Context API
+- TanStack Query
+- REST APIs
+- GraphQL
+- Apollo
+- WebSockets
+- Tailwind CSS
+- Material UI
+- Node.js
+- Express.js
+- MongoDB
+- Git
+- Docker
+- Azure
+skills_adjacent:
+- LLM APIs
+- Jest
+- Socket.io
+- Vite
+- Core Web Vitals
+- React Testing Library
+work_history_narrative: 'Frontend Engineer and Consultant with 3.5+ years of professional
+  experience building high-performance web applications using React.js, Next.js, TypeScript,
+  and modern state architecture. Available to join immediately (0 days notice).
+  '
+company_exclude: []
+company_include_only: []
+seniority_floor_years: 0
+seniority_ceiling_years: 5
+job_freshness_days: 1
+salary_floor_lpa: null
+stop_after_n_applications: 50
+pace_seconds_between_actions: 15
+human_input_timeout_seconds: 120
+max_pages_per_role: 8
+browser_mode: minimized
+resume_file_name: Abhishek_Anand_Resume.docx
+
+naukri_headline_pool:
+- "React Developer | Frontend Engineer | React.js, Next.js 14, TypeScript, Tailwind | 3.5+ Yrs Exp | Immediate Joiner (0 Days Notice) | Scalable Web Apps & Clean Code | Open to Bengaluru, Hyderabad, Pune, NCR & Remote"
+- "Frontend Developer | React.js, Next.js, TypeScript | High-Performance UI Engineer | 3.5+ Years Experience | Immediate Joiner | Core Web Vitals, Redux Toolkit, Tailwind CSS | Available for Interviews Immediately"
+- "React.js Developer | Frontend Engineer | Redux Toolkit, TanStack Query, REST & GraphQL APIs | 3.5+ Yrs Exp | Available Immediately (0 Days Notice) | Complex Enterprise Dashboards & Data-Driven UIs | Open to Relocate"
+- "Senior Frontend Engineer | React Developer | TypeScript, Next.js, Component Libraries | 3.5+ Years Exp | Immediate Joiner | Scalable Architecture, Micro Frontends & Responsive Web Apps | Serving 0 Days Notice"
+- "Frontend Engineer | React.js, Next.js, TypeScript Developer | Unit Testing (Jest, React Testing Library), Tailwind, Git | 3.5+ Yrs Experience | Immediate Joiner | Production-Ready Code & Fast Delivery | Available Now"
+- "React Developer | Frontend Specialist | Next.js, TypeScript, Node.js, WebSockets | 3.5+ Yrs Exp | Immediate Joiner (0 Days Notice) | Real-time Web Apps, Modern Tooling (Vite) | Open to Top Product Teams"
+- "Frontend Developer | React.js, Next.js, TypeScript | UI Architecture & State Management | 3.5+ Years Exp | Immediate Joiner | 100% Ready for Technical Interview Rounds | Open to Relocation & Remote Roles"
+
+naukri_key_skills:
+- React.js
+- ReactJS
+- Next.js
+- Nextjs
+- TypeScript
+- JavaScript
+- Frontend Development
+- UI Development
+- Redux Toolkit
+- Redux
+- State Management
+- Tailwind CSS
+- Material UI
+- RESTful Web Services
+- REST API
+- GraphQL
+- React Testing Library
+- Jest
+- Unit Testing
+- HTML5
+- CSS3
+- Node.js
+- WebSockets
+- Micro Frontends
+- Performance Optimization
+- Core Web Vitals
+- TanStack Query
+- Vite
+- Git
+- Responsive Web Design
+
+naukri_it_skills:
+- skill: React.js
+  version: 18.x
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 8
+- skill: Javascript
+  version: ES6+
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 8
+- skill: TypeScript
+  version: 5.x
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 0
+- skill: Nextjs
+  version: 14.x
+  last_used: '2026'
+  exp_years: 2
+  exp_months: 6
+- skill: Redux
+  version: Redux Toolkit
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 0
+- skill: Tailwind CSS
+  version: 3.x
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 0
+- skill: HTML
+  version: HTML5
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 8
+- skill: CSS
+  version: CSS3
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 8
+- skill: Rest APIs
+  version: ''
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 0
+- skill: GraphQL
+  version: ''
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 0
+- skill: Node.js
+  version: 18.x
+  last_used: '2026'
+  exp_years: 2
+  exp_months: 0
+- skill: Material UI
+  version: 5.x
+  last_used: '2025'
+  exp_years: 2
+  exp_months: 0
+- skill: GIT
+  version: ''
+  last_used: '2026'
+  exp_years: 3
+  exp_months: 8
+- skill: Jest
+  version: ''
+  last_used: '2026'
+  exp_years: 2
+  exp_months: 6

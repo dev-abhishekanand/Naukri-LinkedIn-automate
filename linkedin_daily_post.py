@@ -24,6 +24,7 @@ import sys
 import time
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from common.browser_factory import launch_chrome_browser
 
 # Import LLM clients
 from common import gemini
@@ -404,10 +405,7 @@ def publish_to_linkedin(post_text: str, headless: bool = False, dry_run: bool = 
         if not headless:
             browser_args.append("--start-minimized")
 
-        try:
-            browser = p.chromium.launch(headless=headless, args=browser_args)
-        except Exception:
-            browser = p.chromium.launch(headless=False)
+        browser = launch_chrome_browser(p, headless=headless, extra_args=browser_args)
 
         context = browser.new_context(storage_state=str(session_path))
         page = context.new_page()
@@ -424,7 +422,7 @@ def publish_to_linkedin(post_text: str, headless: bool = False, dry_run: bool = 
 
             # Click "Start a post"
             print("[LinkedIn Post] Looking for 'Start a post' trigger...")
-            start_post_btn = page.locator('button:has-text("Start a post")').first
+            start_post_btn = page.locator(':is(button, div[role="button"]):has-text("Start a post")').first
             if start_post_btn.count() == 0:
                 start_post_btn = page.locator('.share-box-feed-entry__trigger').first
 
@@ -434,15 +432,10 @@ def publish_to_linkedin(post_text: str, headless: bool = False, dry_run: bool = 
                 return False
 
             start_post_btn.click()
-            time.sleep(2.5)
+            time.sleep(3.5)
 
             # Locate post editor
-            editor = page.locator('.editor-content [contenteditable="true"]').first
-            if editor.count() == 0:
-                editor = page.locator('div[role="textbox"]').first
-            if editor.count() == 0:
-                editor = page.locator('.ql-editor').first
-
+            editor = page.locator('.editor-content [contenteditable="true"], div[role="textbox"], .ql-editor, .tiptap').first
             if editor.count() == 0:
                 print("ERROR: Could not locate post content editor.")
                 page.screenshot(path="debug_screenshots/post_editor_error.png")
@@ -451,27 +444,31 @@ def publish_to_linkedin(post_text: str, headless: bool = False, dry_run: bool = 
             print("[LinkedIn Post] Typing post content into editor...")
             editor.click()
             time.sleep(0.5)
-
-            # Fast insertion via keyboard/clipboard or sequential typing
-            # Using press_sequentially with small delay ensures all formatting & line breaks are preserved
-            editor.press_sequentially(post_text, delay=8)
-            time.sleep(2)
+            page.keyboard.type(post_text)
+            time.sleep(2.5)
 
             # Locate Post button
-            post_btn = page.locator('button:has-text("Post")').last
-            if post_btn.count() == 0:
-                post_btn = page.locator('.share-actions__primary-action').first
+            post_btns = page.locator('button, div[role="button"]')
+            found_post_btn = None
+            for i in range(post_btns.count()):
+                b = post_btns.nth(i)
+                try:
+                    if b.is_visible() and b.inner_text().strip() == 'Post':
+                        found_post_btn = b
+                        break
+                except Exception:
+                    pass
 
-            if post_btn.count() == 0:
+            if not found_post_btn:
                 print("ERROR: Could not locate 'Post' submit button.")
                 page.screenshot(path="debug_screenshots/post_button_error.png")
                 return False
 
             print("[LinkedIn Post] Clicking Post button...")
-            post_btn.scroll_into_view_if_needed()
+            found_post_btn.scroll_into_view_if_needed()
             time.sleep(1)
-            post_btn.click()
-            time.sleep(5)
+            found_post_btn.click()
+            time.sleep(6)
 
             print("✓ [LinkedIn Post] Post published successfully to LinkedIn feed!")
             return True

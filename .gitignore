@@ -56,4 +56,18 @@ sheet1_backup.json
 *.png
 *_dump.txt
 user_details.html
+*.csv
+*.ics
+.*.json
+*.jsonl
+*analytics*.json
+*status*.json
+*state*.json
+*seen*.json
+*queue*.json
+*meetings*.json
+*summary*.json
+*history*.json
+*audit*.json
+*dump*.json
 

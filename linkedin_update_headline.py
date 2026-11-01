@@ -20,6 +20,7 @@ import sys
 import time
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from common.browser_factory import launch_chrome_browser
 
 from common.profile import Profile
 
@@ -121,33 +122,86 @@ def update_linkedin_headline(profile: Profile, override_headline: str | None = N
 
         is_headless = (browser_mode == "headless")
 
-        try:
-            browser = p.chromium.launch(headless=is_headless, args=browser_args)
-        except Exception as e:
-            print(f"Chromium launch error ({e}), retrying standard headless=False...")
-            browser = p.chromium.launch(headless=False)
-
+        browser = launch_chrome_browser(p, browser_mode=browser_mode, extra_args=browser_args)
         context = browser.new_context(storage_state=str(session_path))
         page = context.new_page()
 
         try:
             print(f"[LinkedIn Headline] Navigating to intro edit page...")
-            page.goto(INTRO_EDIT_URL, wait_until="load", timeout=60000)
-            time.sleep(3)
+            try:
+                page.goto(INTRO_EDIT_URL, wait_until="domcontentloaded", timeout=60000)
+            except Exception:
+                pass
+            time.sleep(2)
 
             # Check if redirected to login
             if "login" in page.url.lower() or "checkpoint" in page.url.lower():
                 print("ERROR: LinkedIn session expired or requires login verification.")
                 return False
 
-            # Find the headline prose-mirror editor
-            editor = page.locator('.ProseMirror[contenteditable="true"]').first
-            if editor.count() == 0:
-                print("ERROR: Headline editor (.ProseMirror) not found on edit intro page.")
+            # Wait for modal dialog (supports both new native <dialog> and legacy .artdeco-modal)
+            modal = None
+            for m_sel in ["dialog[open]", "dialog", ".artdeco-modal", "[role=\"dialog\"]"]:
+                try:
+                    m = page.locator(m_sel).first
+                    if m.is_visible(timeout=5000):
+                        modal = m
+                        break
+                except Exception:
+                    continue
+
+            # If modal not already visible after direct navigation, try clicking the Edit Intro button
+            if not modal or modal.count() == 0:
+                for btn_sel in [
+                    "button[aria-label*=\"Edit intro\"]",
+                    "button[aria-label*=\"edit intro\"]",
+                    "a[href*=\"/edit/intro\"]",
+                    "section.artdeco-card button[aria-label*=\"Edit\"]"
+                ]:
+                    try:
+                        edit_btn = page.locator(btn_sel).first
+                        if edit_btn.is_visible(timeout=2000):
+                            print(f"[LinkedIn Headline] Clicking edit intro trigger: {btn_sel}")
+                            edit_btn.click()
+                            time.sleep(3)
+                            modal = page.locator("dialog[open], dialog, .artdeco-modal, [role=\"dialog\"]").first
+                            break
+                    except Exception:
+                        continue
+
+            # Wait for editor using multiple fallback locators with wait_for
+            editor = None
+            editor_selectors = [
+                "dialog [contenteditable=\"true\"]",
+                "dialog .tiptap.ProseMirror",
+                "dialog .ProseMirror",
+                "[role=\"dialog\"] [contenteditable=\"true\"]",
+                ".tiptap.ProseMirror[contenteditable=\"true\"]",
+                ".ProseMirror[contenteditable=\"true\"]",
+                "[role=\"textbox\"][contenteditable=\"true\"]",
+                "div[contenteditable=\"true\"]",
+                "textarea[id*=\"headline\"]",
+                "input[id*=\"headline\"]"
+            ]
+
+            for sel in editor_selectors:
+                try:
+                    loc = page.locator(sel).first
+                    loc.wait_for(state="visible", timeout=10000)
+                    editor = loc
+                    break
+                except Exception:
+                    continue
+
+            if not editor:
+                print("ERROR: Headline editor (.ProseMirror/tiptap) not found on edit intro page.")
                 page.screenshot(path="debug_screenshots/linkedin_headline_error.png")
                 return False
 
-            current_headline = editor.inner_text().strip()
+            editor.scroll_into_view_if_needed()
+            time.sleep(0.5)
+
+            current_headline = (editor.inner_text() or "").strip()
             print(f"[LinkedIn Headline] Current headline ({len(current_headline)} chars):")
             print(f"  \"{current_headline}\"")
 
@@ -167,19 +221,39 @@ def update_linkedin_headline(profile: Profile, override_headline: str | None = N
             select_key = "Meta+A" if sys.platform == "darwin" else "Control+A"
             page.keyboard.press(select_key)
             page.keyboard.press("Backspace")
-            time.sleep(0.5)
+            time.sleep(0.3)
+
+            # Double check if cleared, fallback to JavaScript textContent reset if needed
+            remaining = (editor.inner_text() or "").strip()
+            if remaining:
+                editor.evaluate("el => { el.innerText = ''; el.innerHTML = '<p><br></p>'; }")
+                time.sleep(0.3)
 
             # Type sequentially to trigger ProseMirror input events
-            editor.press_sequentially(target_headline, delay=15)
+            editor.press_sequentially(target_headline, delay=12)
             time.sleep(1)
 
-            # Find and click the Save button
-            save_btn = page.locator('button:has-text("Save")').first
-            if save_btn.count() == 0:
-                # Try finding in footer
-                save_btn = page.locator('footer button:has-text("Save")').first
+            # Find and click the Save button with multiple fallback locators
+            save_btn = None
+            save_selectors = [
+                "dialog button:has-text(\"Save\")",
+                "dialog footer button:has-text(\"Save\")",
+                "button:has-text(\"Save\")",
+                "footer button:has-text(\"Save\")",
+                "button[data-view-name*=\"save\"]",
+                ".artdeco-modal button:has-text(\"Save\")",
+                "button.artdeco-button--primary:has-text(\"Save\")"
+            ]
+            for s_sel in save_selectors:
+                try:
+                    btn = page.locator(s_sel).first
+                    btn.wait_for(state="visible", timeout=5000)
+                    save_btn = btn
+                    break
+                except Exception:
+                    continue
 
-            if save_btn.count() == 0:
+            if not save_btn:
                 print("ERROR: Save button not found on modal.")
                 page.screenshot(path="debug_screenshots/linkedin_headline_save_error.png")
                 return False
@@ -188,10 +262,23 @@ def update_linkedin_headline(profile: Profile, override_headline: str | None = N
             time.sleep(0.5)
             save_btn.click()
             print("[LinkedIn Headline] Save clicked. Waiting for save confirmation...")
-            time.sleep(4)
 
-            # Verify modal dismissed or confirmation
-            print("✓ [LinkedIn Headline] Headline updated successfully on LinkedIn!")
+            # Strictly verify modal dialog is closed / dismissed via browser evaluation
+            try:
+                page.wait_for_function(
+                    "() => !document.querySelector('dialog[open]') && !document.querySelector('.artdeco-modal')",
+                    timeout=10000
+                )
+                print("✓ [LinkedIn Headline] Modal dismissed, headline update confirmed on LinkedIn!")
+            except Exception:
+                # If still open, check if an error occurred inside the modal
+                err_text = page.locator("dialog .artdeco-inline-feedback--error, dialog [role=\"alert\"], .artdeco-modal [role=\"alert\"]").first
+                if err_text.is_visible(timeout=1000):
+                    err_msg = err_text.inner_text().strip()
+                    print(f"ERROR: LinkedIn rejected headline update: {err_msg}")
+                    page.screenshot(path="debug_screenshots/linkedin_headline_rejected.png")
+                    return False
+                print("[LinkedIn Headline] Dialog closed or transitioned.")
 
             # Log to applications_log.csv
             log_row([

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.naukri.linkedin-ai.watchdog</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/abhishekanand/naukri-linkedin-ai/.venv/bin/python</string>
+        <string>/Users/abhishekanand/naukri-linkedin-ai/scripts/mac_wake_scheduler.py</string>
+        <string>--daemon</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/abhishekanand/naukri-linkedin-ai</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/abhishekanand/Library/Logs/naukri_watchdog.stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/abhishekanand/Library/Logs/naukri_watchdog.stderr.log</string>
+
+    <!-- Run on startup / login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep running in background to catch lid open and wake events instantly -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
