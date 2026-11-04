@@ -45,14 +45,14 @@ PORTALS = {
     "instahyre": {
         "name": "Instahyre",
         "file": "session_instahyre.json",
-        "auth_cookies": ["auth_token", "candidate_id", "sessionid"],
-        "critical_cookies": ["auth_token"]
+        "auth_cookies": ["sessionid", "csrftoken"],
+        "critical_cookies": ["sessionid"]
     },
     "cutshort": {
         "name": "Cutshort",
         "file": "session_cutshort.json",
         "auth_cookies": ["cutshort_authentication", "user_logged_in_once"],
-        "critical_cookies": ["cutshort_authentication"]
+        "critical_cookies": ["cutshort_authentication", "user_logged_in_once"]
     },
     "wellfound": {
         "name": "Wellfound",
@@ -63,8 +63,8 @@ PORTALS = {
     "hirist": {
         "name": "Hirist",
         "file": "session_hirist.json",
-        "auth_cookies": ["hirist_session", "candidate_id", "user_id"],
-        "critical_cookies": ["hirist_session", "candidate_id"]
+        "auth_cookies": ["hirist_seeker_enc", "HIRIST_CK1", "PHPSESSID", "chatSdkToken"],
+        "critical_cookies": ["hirist_seeker_enc"]
     }
 }
 
@@ -139,51 +139,72 @@ def check_portal(key: str, conf: dict) -> dict:
 
     elif key == "cutshort":
         auth_cookie = cookie_map.get("cutshort_authentication")
-        if not auth_cookie or len(auth_cookie.get("value", "")) < 15:
+        captured_url = data.get("metadata", {}).get("captured_url", "").lower()
+        is_authenticated_meta = data.get("metadata", {}).get("authenticated") is True
+        is_cs_page = any(route in captured_url for route in ["/profile", "/inbox", "/dashboard", "/jobs", "/candidate", "/messages", "/feed"])
+        origins = data.get("origins", [])
+        ls_keys = set()
+        for o in origins:
+            for item in o.get("localStorage", []):
+                ls_keys.add(item.get("name", "").lower())
+        has_auth_storage = any(k in ls_keys for k in ["user", "candidate_id", "email", "profile", "jwt", "token"])
+
+        # Anonymous visitors have cutshort_authentication on homepage but lack candidate route or candidate storage
+        if not auth_cookie or len(auth_cookie.get("value", "")) < 15 or not (is_cs_page or has_auth_storage or (is_authenticated_meta and captured_url.rstrip("/") != "https://cutshort.io")):
             return {
                 "key": key,
                 "name": conf["name"],
                 "file": conf["file"],
                 "status": "NOT LOGGED IN",
-                "reason": "cutshort_authentication token missing or empty",
+                "reason": "Anonymous session only (login not completed on candidate portal)",
                 "cookies_found": len(cookies),
-                "auth_tokens": auth_found,
+                "auth_tokens": [],
                 "candidate_id": None
             }
 
     elif key == "instahyre":
-        # Check if auth_token exists or candidate localStorage is present
+        session_cookie = cookie_map.get("sessionid")
+        if not session_cookie or len(session_cookie.get("value", "")) < 15:
+            return {
+                "key": key,
+                "name": conf["name"],
+                "file": conf["file"],
+                "status": "NOT LOGGED IN",
+                "reason": "sessionid cookie missing or invalid",
+                "cookies_found": len(cookies),
+                "auth_tokens": [],
+                "candidate_id": None
+            }
+
+        # Check if authenticated via metadata or candidate session length
+        is_authenticated_meta = data.get("metadata", {}).get("authenticated") is True
         origins = data.get("origins", [])
         ls_keys = set()
         for o in origins:
             for item in o.get("localStorage", []):
                 ls_keys.add(item.get("name", ""))
-                # If only login rum exists, it's NOT logged in
-                if item.get("name") == "instahyre_rum_view_windows_v1" and "login" in item.get("value", "") and "candidate" not in item.get("value", ""):
-                    ls_keys.add("__only_login__")
 
-        has_auth_cookie = "auth_token" in cookie_map or "candidate_id" in cookie_map
         has_auth_storage = any(k in ls_keys for k in ["user", "candidate_id", "email", "profile"])
         
-        if "__only_login__" in ls_keys and not has_auth_cookie:
+        # In Instahyre, a logged-in user with Google/Email has sessionid + 20+ cookies
+        if is_authenticated_meta or has_auth_storage or len(cookies) >= 15:
+            return {
+                "key": key,
+                "name": conf["name"],
+                "file": conf["file"],
+                "status": "LOGGED IN",
+                "reason": "Verified Instahyre candidate authenticated session",
+                "cookies_found": len(cookies),
+                "auth_tokens": ["sessionid", "csrftoken"],
+                "candidate_id": "Candidate Dashboard Verified"
+            }
+        else:
             return {
                 "key": key,
                 "name": conf["name"],
                 "file": conf["file"],
                 "status": "NOT LOGGED IN",
                 "reason": "Anonymous session at login page only",
-                "cookies_found": len(cookies),
-                "auth_tokens": [],
-                "candidate_id": None
-            }
-
-        if not has_auth_cookie and not has_auth_storage and not ("sessionid" in cookie_map and len(cookies) > 20):
-            return {
-                "key": key,
-                "name": conf["name"],
-                "file": conf["file"],
-                "status": "NOT LOGGED IN",
-                "reason": "Missing candidate authentication credentials",
                 "cookies_found": len(cookies),
                 "auth_tokens": [],
                 "candidate_id": None
@@ -200,6 +221,52 @@ def check_portal(key: str, conf: dict) -> dict:
                 "reason": "li_at authentication cookie missing or empty",
                 "cookies_found": len(cookies),
                 "auth_tokens": auth_found,
+                "candidate_id": None
+            }
+
+    elif key == "hirist":
+        has_seeker_enc = "hirist_seeker_enc" in cookie_map
+        has_ck1 = "HIRIST_CK1" in cookie_map
+        captured_url = data.get("metadata", {}).get("captured_url", "").lower()
+        is_candidate_page = any(route in captured_url for route in ["/jobfeed", "/candidate", "/job-feed", "/dashboard", "/profile"])
+        
+        # Extract candidate ID from JWT if present
+        candidate_id = None
+        for ck_name in ["hirist_seeker_enc", "HIRIST_CK1"]:
+            if ck_name in cookie_map:
+                try:
+                    import base64
+                    val = cookie_map[ck_name].get("value", "")
+                    parts = val.split(".")
+                    if len(parts) >= 2:
+                        pad = "=" * (-len(parts[1]) % 4)
+                        payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad).decode(errors="ignore"))
+                        if payload.get("id"):
+                            candidate_id = f"Candidate #{payload['id']}"
+                            break
+                except Exception:
+                    pass
+
+        if (has_seeker_enc or has_ck1) and (len(cookies) >= 15 or is_candidate_page or candidate_id):
+            return {
+                "key": key,
+                "name": conf["name"],
+                "file": conf["file"],
+                "status": "LOGGED IN",
+                "reason": f"Verified Hirist candidate session ({', '.join(auth_found) if auth_found else 'hirist_seeker_enc'})",
+                "cookies_found": len(cookies),
+                "auth_tokens": [c for c in ["hirist_seeker_enc", "HIRIST_CK1", "PHPSESSID"] if c in cookie_map],
+                "candidate_id": candidate_id or "Verified Candidate"
+            }
+        else:
+            return {
+                "key": key,
+                "name": conf["name"],
+                "file": conf["file"],
+                "status": "NOT LOGGED IN",
+                "reason": "Missing Hirist candidate authentication cookies (hirist_seeker_enc)",
+                "cookies_found": len(cookies),
+                "auth_tokens": [],
                 "candidate_id": None
             }
 

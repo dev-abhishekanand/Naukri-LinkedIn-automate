@@ -141,7 +141,10 @@ def run_login(portal_key: str):
         print("-------------------------------------------------------\n")
 
         start = time.time()
-        while time.time() - start < 300:  # 5 minutes
+        login_authenticated = False
+        captured_page_url = ""
+
+        while time.time() - start < 360:  # 6 minutes
             try:
                 if not context.pages or all(pg.is_closed() for pg in context.pages):
                     print("  [✓] Browser window closed. Saving session...")
@@ -149,6 +152,7 @@ def run_login(portal_key: str):
 
                 active_page = context.pages[-1] if context.pages else page
                 curr_url = active_page.url.lower()
+                captured_page_url = curr_url
                 cookies = context.cookies()
                 c_names = {c.get("name") for c in cookies}
 
@@ -177,38 +181,43 @@ def run_login(portal_key: str):
 
                 elif portal_key == "instahyre":
                     is_insta_domain = "instahyre.com" in curr_url
-                    is_candidate_page = ("candidate/opportunities" in curr_url or "candidate/profile" in curr_url or "candidate/dashboard" in curr_url)
-                    has_insta_auth = any(c in c_names for c in ["sessionid", "auth_token"])
-                    if is_insta_domain and not any(x in curr_url for x in ["/login", "signin", "signup"]) and (is_candidate_page or (has_insta_auth and "candidate" in curr_url)):
+                    is_candidate_page = any(route in curr_url for route in ["candidate/opportunities", "candidate/profile", "candidate/dashboard", "candidate/applications"])
+                    has_sessionid = any(c.get("name") == "sessionid" and len(c.get("value", "")) > 15 for c in cookies)
+                    if is_insta_domain and not any(x in curr_url for x in ["/login", "signin", "signup"]) and is_candidate_page and has_sessionid:
                         print("  [✓] Verified Instahyre candidate dashboard!")
-                        time.sleep(2)
+                        login_authenticated = True
+                        time.sleep(3)
                         break
 
                 elif portal_key == "cutshort":
                     is_cs_domain = "cutshort.io" in curr_url
+                    is_cs_page = any(route in curr_url for route in ["/profile", "/inbox", "/dashboard", "/jobs", "/candidate", "/messages", "/feed"])
                     has_cs_auth = any(c.get("name") == "cutshort_authentication" and len(c.get("value", "")) > 15 for c in cookies)
-                    is_cs_page = ("dashboard" in curr_url or "profile" in curr_url or "inbox" in curr_url or "jobs" in curr_url)
-                    if is_cs_domain and "login" not in curr_url and (has_cs_auth or is_cs_page):
-                        print("  [✓] Verified Cutshort authentication token!")
-                        time.sleep(2)
+                    is_not_homepage = not any(x in curr_url for x in ["/login", "signup", "signin", "/candidate-login"]) and curr_url.rstrip("/") != "https://cutshort.io"
+                    if is_cs_domain and is_not_homepage and is_cs_page and has_cs_auth:
+                        print("  [✓] Verified Cutshort candidate dashboard!")
+                        login_authenticated = True
+                        time.sleep(3)
                         break
 
                 elif portal_key == "wellfound":
                     is_wf_domain = "wellfound.com" in curr_url
                     has_wf_auth = any(c in c_names for c in ["remember_user_token", "auth_token"])
                     is_wf_page = ("jobs" in curr_url or "profile" in curr_url or "overview" in curr_url or "candidates" in curr_url)
-                    if is_wf_domain and "login" not in curr_url and (has_wf_auth or is_wf_page):
+                    if is_wf_domain and "login" not in curr_url and (has_wf_auth and is_wf_page):
                         print("  [✓] Verified Wellfound authentication token!")
-                        time.sleep(2)
+                        login_authenticated = True
+                        time.sleep(3)
                         break
 
                 elif portal_key == "hirist":
                     is_hirist_domain = ("hirist.tech" in curr_url or "hirist.com" in curr_url)
-                    has_hirist_auth = any(c in c_names for c in ["hirist_session", "candidate_id", "user_id"])
-                    is_hirist_page = ("candidate/dashboard" in curr_url or "candidate/jobs" in curr_url or "candidate/profile" in curr_url or "candidate/my-applications" in curr_url)
-                    if is_hirist_domain and "candidate/login" not in curr_url and not any(x in curr_url for x in ["/login", "signin", "signup"]) and (is_hirist_page or has_hirist_auth):
+                    has_hirist_auth = any(c in c_names for c in ["hirist_seeker_enc", "HIRIST_CK1", "chatSdkToken"])
+                    is_hirist_page = any(route in curr_url for route in ["jobfeed", "candidate", "dashboard", "profile"])
+                    if is_hirist_domain and not any(x in curr_url for x in ["/login", "candidate/login", "signin", "signup"]) and (has_hirist_auth or is_hirist_page):
                         print("  [✓] Verified Hirist candidate session!")
-                        time.sleep(2)
+                        login_authenticated = True
+                        time.sleep(3)
                         break
 
                 elif portal_key == "indeed":
@@ -225,6 +234,19 @@ def run_login(portal_key: str):
 
         # Save cookies
         context.storage_state(path=str(session_file))
+        try:
+            with open(session_file, "r", encoding="utf-8") as f:
+                saved_state = json.load(f)
+            saved_state["metadata"] = {
+                "portal": portal_key,
+                "authenticated": login_authenticated,
+                "captured_url": captured_page_url,
+                "timestamp": int(time.time()),
+            }
+            with open(session_file, "w", encoding="utf-8") as f:
+                json.dump(saved_state, f, indent=2)
+        except Exception:
+            pass
         print(f"\n[✓] Fresh session successfully saved to: {session_file.name}")
         try:
             context.close()
