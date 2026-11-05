@@ -4,6 +4,7 @@ import AiScannerView from './components/AiScannerView';
 import DirectApplyView from './components/DirectApplyView';
 import GoogleSheetsBatchRunnerView from './components/GoogleSheetsBatchRunnerView';
 import VerifiedLedgerView from './components/VerifiedLedgerView';
+import { PhoneConnectModal } from './components/PhoneConnectModal';
 
     function App() {
       // Phase 3 Tabs: 'hub', 'ai', 'direct', 'sheets', 'ledger'
@@ -17,6 +18,7 @@ import VerifiedLedgerView from './components/VerifiedLedgerView';
       const [meetingsData, setMeetingsData] = useState<any[]>([]);
       const [logModal, setLogModal] = useState({ open: false, title: '', content: '' });
       const [reloginModal, setReloginModal] = useState<{ open: boolean; site: string; portalKey?: string; command: string }>({ open: false, site: '', portalKey: '', command: '' });
+      const [phoneModalOpen, setPhoneModalOpen] = useState(false);
 
       // Battery-Saving Eco State ('auto', 'fast', 'paused')
       const [ecoMode, setEcoMode] = useState('auto');
@@ -266,6 +268,13 @@ import VerifiedLedgerView from './components/VerifiedLedgerView';
                       className="px-2 py-1 rounded-lg text-xs bg-rose-950/80 text-rose-300 border border-rose-500/50 hover:bg-rose-900 font-semibold"
                     >
                       🧹 Clear All
+                    </button>
+                    <button
+                      onClick={() => setPhoneModalOpen(true)}
+                      title="Open on your phone via QR Code or local Wi-Fi link"
+                      className="px-2.5 py-1 rounded-lg text-xs font-mono font-medium border border-indigo-500/40 bg-indigo-950/40 text-indigo-200 hover:bg-indigo-900/50 flex items-center gap-1.5 transition shadow"
+                    >
+                      <span>📱</span> Phone App
                     </button>
                   </>
                 ) : (
@@ -558,6 +567,9 @@ import VerifiedLedgerView from './components/VerifiedLedgerView';
               </div>
             </div>
           )}
+
+          {/* Phone Connect & PWA Modal */}
+          <PhoneConnectModal open={phoneModalOpen} onClose={() => setPhoneModalOpen(false)} />
         </div>
       );
     }

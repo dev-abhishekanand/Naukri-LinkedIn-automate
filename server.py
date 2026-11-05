@@ -713,6 +713,50 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(content)
                 return
 
+        # 1c. Serve Root PWA Web App Assets (manifest.json, sw.js, app icons)
+        pwa_file = (WEB_DIR / "dist" / url_path.lstrip("/")).resolve()
+        if (
+            url_path in ("/manifest.json", "/sw.js", "/apple-touch-icon.png", "/favicon.png", "/favicon.ico", "/icon.svg")
+            or url_path.startswith("/icon-")
+        ) and pwa_file.exists() and pwa_file.is_file():
+            content = pwa_file.read_bytes()
+            mime_map = {
+                ".json": "application/manifest+json",
+                ".js": "application/javascript",
+                ".png": "image/png",
+                ".svg": "image/svg+xml",
+                ".ico": "image/x-icon",
+            }
+            mime = mime_map.get(pwa_file.suffix, "application/octet-stream")
+            self.send_response(200)
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+            return
+
+        # 1d. Network Info (Local IP & Phone Access URL)
+        if url_path == "/api/network-info":
+            import socket
+            hostname = socket.gethostname()
+            local_ip = "127.0.0.1"
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.connect(("8.8.8.8", 80))
+                local_ip = s.getsockname()[0]
+                s.close()
+            except Exception:
+                pass
+            port = getattr(self.server, "server_port", 8585)
+            self.send_json({
+                "local_ip": local_ip,
+                "port": port,
+                "url": f"http://{local_ip}:{port}",
+                "hostname": hostname,
+                "mdns_url": f"http://{hostname}.local:{port}" if not hostname.endswith(".local") else f"http://{hostname}:{port}"
+            })
+            return
+
         # Favicon handler
         if url_path == "/favicon.ico":
             self.send_response(204)
@@ -1432,10 +1476,21 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
 def run_server(port: int = 8585):
     server_address = ("0.0.0.0", port)
     httpd = ThreadingHTTPServer(server_address, UnifiedDashboardHandler)
+    httpd.server_port = port
+    import socket
+    local_ip = "127.0.0.1"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
     print("=" * 65)
     print(f"🚀 Unified Master Job Automation Command Center active on:")
-    print(f"   👉 http://localhost:{port}")
-    print("   Real-Time Diagnostics, Multi-Portal Auto-Apply & AI Intake Hub")
+    print(f"   💻 Laptop Browser:    http://localhost:{port}")
+    print(f"   📱 Phone / Web App:   http://{local_ip}:{port}")
+    print("   ✨ PWA Standalone:    Supported (Add to Home Screen on iOS & Android)")
     print("=" * 65)
     try:
         httpd.serve_forever()

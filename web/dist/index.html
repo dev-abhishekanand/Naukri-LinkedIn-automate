@@ -2,8 +2,22 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Master Job Automation & Diagnostics Command Center | Abhishek Anand</title>
+    
+    <!-- PWA Web App Meta Tags -->
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="description" content="Real-Time Job Automation, Multi-Portal Applications & Diagnostics Hub" />
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple Web App Support (iOS Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Job Command" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,10 +25,20 @@
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/assets/index-C2mSPWab.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CjLauwxA.css">
+    <script type="module" crossorigin src="/assets/index-MQgCL7xu.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C4CiXHQ1.css">
   </head>
-  <body class="min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+  <body class="min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white pb-safe">
     <div id="root"></div>
+    <script>
+      // Register PWA Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.log('SW registration notice:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
