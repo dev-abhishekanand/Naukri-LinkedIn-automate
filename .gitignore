@@ -73,3 +73,8 @@ user_details.html
 *audit*.json
 *dump*.json
 
+# Frontend node_modules
+frontend/node_modules/
+frontend/.vite/
+
+

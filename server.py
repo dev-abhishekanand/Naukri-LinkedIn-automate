@@ -677,9 +677,10 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         url_path = parsed.path
 
-        # 1. Serve React Frontend
+        # 1. Serve React Frontend (Prioritize Vite Compiled React Build, Fallback to Legacy HTML)
         if url_path in ("/", "/index.html"):
-            index_path = WEB_DIR / "index.html"
+            dist_index = WEB_DIR / "dist" / "index.html"
+            index_path = dist_index if dist_index.exists() else (WEB_DIR / "index.html")
             if index_path.exists():
                 content = index_path.read_bytes()
                 self.send_response(200)
@@ -693,6 +694,24 @@ class UnifiedDashboardHandler(BaseHTTPRequestHandler):
             else:
                 self.send_error(404, "web/index.html not found")
             return
+
+        # 1b. Serve Static Assets (from Vite Production Bundle: /assets/*)
+        if url_path.startswith("/assets/"):
+            asset_file = (WEB_DIR / "dist" / url_path.lstrip("/")).resolve()
+            if asset_file.exists() and asset_file.is_file():
+                content = asset_file.read_bytes()
+                mime = "application/javascript" if asset_file.suffix == ".js" else (
+                    "text/css" if asset_file.suffix == ".css" else (
+                        "image/svg+xml" if asset_file.suffix == ".svg" else "application/octet-stream"
+                    )
+                )
+                self.send_response(200)
+                self.send_header("Content-Type", mime)
+                self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+                return
 
         # Favicon handler
         if url_path == "/favicon.ico":
